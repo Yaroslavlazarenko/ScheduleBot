@@ -1,0 +1,2 @@
+pydantic-settings
+aiogram>=3.0.0
