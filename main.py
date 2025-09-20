@@ -43,7 +43,7 @@ async def main():
         user_service=user_service,
         region_service=region_service
     )
-    
+
     # --- Bot Initialization ---
     storage = MemoryStorage()
     bot = Bot(
@@ -67,6 +67,7 @@ async def main():
     dispatcher.include_router(handlers.common_router)
     dispatcher.include_router(handlers.user_router)
     dispatcher.include_router(handlers.schedule_router)
+    dispatcher.include_router(handlers.inline_router)
 
     # --- Bot Start ---
     await bot.delete_webhook(drop_pending_updates=True)

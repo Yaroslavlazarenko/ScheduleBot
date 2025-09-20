@@ -71,9 +71,9 @@ class ScheduleService:
         month_name = MONTHS_UA.get(schedule_date.month, "")
         week_type = "парний" if schedule.is_even_week else "непарний"
         
-        header = f"{seasonal_emoji} {schedule.day_of_week_abbreviation.capitalize()}. {day:02} {month_name} ┃ Тижд. {schedule.week_number} ({week_type[0]}/пар)"
-        
-        parts = [header]
+        header1 = f"{seasonal_emoji} {schedule.day_of_week_name.capitalize()}. {day:02} {month_name}"
+        header2 = f"Тиждень {schedule.week_number} ({week_type})"
+        parts = [header1, header2]
         
         if schedule.override_info:
             parts.append(f"❗️ <b>Заміна:</b> {schedule.override_info.substituted_day_name}")
@@ -89,14 +89,15 @@ class ScheduleService:
                 start_time = time.fromisoformat(lesson.pair_start_time).strftime('%-H:%M')
                 end_time = time.fromisoformat(lesson.pair_end_time).strftime('%-H:%M')
                 
-                lesson_name = lesson.subject_abbreviation
+                lesson_name = lesson.subject_name
                 if lesson.lesson_url:
                     lesson_name = f"<a href='{lesson.lesson_url}'>{lesson_name}</a>"
 
                 lesson_line = (
                     f"{lesson.pair_number}. {lesson_name} "
-                    f"({lesson.subject_type_abbreviation.lower()}.) "
-                    f"({start_time}-{end_time})"
+                    f"({lesson.subject_type_abbreviation}) "
+                    f"({start_time}-{end_time}) "
+                    f"{lesson.teacher_full_name}"
                 )
                 parts.append(lesson_line)
 

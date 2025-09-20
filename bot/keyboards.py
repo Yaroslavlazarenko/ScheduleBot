@@ -17,6 +17,7 @@ class RegionCallbackFactory(CallbackData, prefix="region"):
 class ScheduleCallbackFactory(CallbackData, prefix="schedule"):
     action: str
     current_date: str
+    original_user_id: int 
 
 def create_main_keyboard() -> ReplyKeyboardMarkup:
     """Створює головну клавіатуру з основними діями."""
@@ -28,17 +29,25 @@ def create_main_keyboard() -> ReplyKeyboardMarkup:
         one_time_keyboard=False
     )
 
-def create_schedule_navigation_keyboard(current_date: date) -> InlineKeyboardMarkup:
+def create_schedule_navigation_keyboard(current_date: date, original_user_id: int) -> InlineKeyboardMarkup:
     """Створює інлайн-клавіатуру для навігації по днях розкладу."""
     date_str = current_date.isoformat()
     buttons = [
         InlineKeyboardButton(
             text="⬅️",
-            callback_data=ScheduleCallbackFactory(action="prev", current_date=date_str).pack()
+            callback_data=ScheduleCallbackFactory(
+                action="prev", 
+                current_date=date_str, 
+                original_user_id=original_user_id
+            ).pack()
         ),
         InlineKeyboardButton(
             text="➡️",
-            callback_data=ScheduleCallbackFactory(action="next", current_date=date_str).pack()
+            callback_data=ScheduleCallbackFactory(
+                action="next", 
+                current_date=date_str, 
+                original_user_id=original_user_id
+            ).pack()
         )
     ]
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
