@@ -4,6 +4,9 @@ from .dto import (
     ApiRegionDTO,
     ApiUserDTO,
     ApiCreateUserDTO,
+    LessonDTO,
+    ScheduleOverrideInfoDTO,
+    DailyScheduleDTO,
 )
 from .exceptions import (
     ApiClientError,
@@ -20,4 +23,7 @@ __all__ = [
     'ApiClientError',
     'ResourceNotFoundError',
     'ApiBadRequestError',
+    'LessonDTO',
+    'ScheduleOverrideInfoDTO',
+    'DailyScheduleDTO',
 ]

@@ -1,13 +1,14 @@
 from typing import List
-from api import ApiClient, ApiGroupDTO
+from api import ApiGroupDTO
+from api.gateways import GroupGateway
 
 class GroupService:
-    def __init__(self, client: ApiClient):
-        self._client = client
+    def __init__(self, gateway: GroupGateway):
+        self._gateway = gateway
 
     async def get_all_groups(self) -> List[ApiGroupDTO]:
         """Отримує всі групи з API."""
-        response_data = await self._client.get('/api/group')
+        response_data = await self._gateway.get_all_groups()
         if not response_data:
             return []
         return [ApiGroupDTO.model_validate(group) for group in response_data]

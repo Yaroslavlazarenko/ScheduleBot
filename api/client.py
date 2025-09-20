@@ -8,12 +8,12 @@ class ApiClient:
         self.headers = {'X-Api-Key': api_key, 'Content-Type': 'application/json'}
         self.use_ssl = use_ssl
 
-    async def _request(self, method: str, endpoint: str, data: dict | None = None) -> Any:
+    async def _request(self, method: str, endpoint: str, data: dict | None = None, params: dict | None = None) -> Any:
         url = self.base_url + endpoint
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.request(
-                    method, url, json=data, ssl=self.use_ssl
+                    method, url, json=data, ssl=self.use_ssl, params=params
                 ) as response:
                     if 400 <= response.status < 600:
                         message = await response.text()
@@ -28,8 +28,8 @@ class ApiClient:
         except aiohttp.ClientError as err:
             raise ApiClientError(status_code=500, message=str(err)) from err
 
-    async def get(self, endpoint: str) -> Any:
-        return await self._request('GET', endpoint)
+    async def get(self, endpoint: str, params: dict | None = None) -> Any:
+        return await self._request('GET', endpoint, params=params)
 
     async def post(self, endpoint: str, data: dict) -> Any:
-        return await self._request('POST', endpoint, data)
+        return await self._request('POST', endpoint, data=data)

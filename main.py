@@ -8,7 +8,9 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from api import ApiClient
-from application.services import GroupService, RegionService, UserService
+from api.gateways import GroupGateway, RegionGateway, UserGateway
+from application.services import (GroupService, RegionService, ScheduleService,
+                                  UserService)
 from bot import handlers
 from bot.middlewares import DiMiddleware
 from config import settings
@@ -23,10 +25,17 @@ async def main():
 
     # --- Composition Root ---
     logging.info("Creating dependencies...")
+
     api_client = ApiClient(base_url=settings.api_base_url, api_key=settings.api_key, use_ssl=False)
-    group_service = GroupService(client=api_client)
-    user_service = UserService(client=api_client)
-    region_service = RegionService(client=api_client)
+
+    user_gateway = UserGateway(client=api_client)
+    group_gateway = GroupGateway(client=api_client)
+    region_gateway = RegionGateway(client=api_client)
+
+    group_service = GroupService(gateway=group_gateway)
+    user_service = UserService(gateway=user_gateway)
+    region_service = RegionService(gateway=region_gateway)
+    schedule_service = ScheduleService(user_gateway=user_gateway, user_service=user_service)
 
     # --- Bot Initialization ---
     storage = MemoryStorage()
@@ -41,7 +50,8 @@ async def main():
         DiMiddleware(
             user_service=user_service,
             group_service=group_service,
-            region_service=region_service
+            region_service=region_service,
+            schedule_service=schedule_service
         )
     )
 
@@ -49,6 +59,7 @@ async def main():
     logging.info("Including routers...")
     dispatcher.include_router(handlers.common_router)
     dispatcher.include_router(handlers.user_router)
+    dispatcher.include_router(handlers.schedule_router)
 
     # --- Bot Start ---
     await bot.delete_webhook(drop_pending_updates=True)

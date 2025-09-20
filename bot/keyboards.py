@@ -1,7 +1,9 @@
 from typing import List
+from datetime import date
 
 from aiogram.filters.callback_data import CallbackData
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, 
+                           KeyboardButton, ReplyKeyboardMarkup)
 
 from api import ApiGroupDTO, ApiRegionDTO
 
@@ -11,6 +13,35 @@ class GroupCallbackFactory(CallbackData, prefix="group"):
 
 class RegionCallbackFactory(CallbackData, prefix="region"):
     id: int
+
+class ScheduleCallbackFactory(CallbackData, prefix="schedule"):
+    action: str
+    current_date: str
+
+def create_main_keyboard() -> ReplyKeyboardMarkup:
+    """Створює головну клавіатуру з основними діями."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🗓 Отримати розклад")]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False
+    )
+
+def create_schedule_navigation_keyboard(current_date: date) -> InlineKeyboardMarkup:
+    """Створює інлайн-клавіатуру для навігації по днях розкладу."""
+    date_str = current_date.isoformat()
+    buttons = [
+        InlineKeyboardButton(
+            text="⬅️",
+            callback_data=ScheduleCallbackFactory(action="prev", current_date=date_str).pack()
+        ),
+        InlineKeyboardButton(
+            text="➡️",
+            callback_data=ScheduleCallbackFactory(action="next", current_date=date_str).pack()
+        )
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 def create_groups_keyboard(groups: List[ApiGroupDTO], columns: int = 2) -> InlineKeyboardMarkup:
     """
