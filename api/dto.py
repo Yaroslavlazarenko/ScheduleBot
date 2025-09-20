@@ -42,6 +42,19 @@ class DailyScheduleDTO(BaseModel):
     group_name: str = Field(alias='groupName')
     lessons: list[LessonDTO]
 
+class ApiTeacherInfoDTO(BaseModel):
+    info_type_id: int = Field(alias='infoTypeId')
+    info_type_name: str = Field(alias='infoTypeName')
+    value: str
+
+class ApiTeacherDTO(BaseModel):
+    id: int
+    first_name: str = Field(alias='firstName')
+    last_name: str = Field(alias='lastName')
+    middle_name: str | None = Field(None, alias='middleName')
+    full_name: str = Field(alias='fullName')
+    infos: list[ApiTeacherInfoDTO] = []
+
 class ApiCreateUserDTO(BaseModel):
     telegram_id: int = Field(alias='telegramId')
     username: str | None = Field(None, alias='username')

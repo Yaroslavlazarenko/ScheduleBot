@@ -8,7 +8,7 @@ from aiogram.types import Message
 from api import ApiBadRequestError, ResourceNotFoundError
 from application.services import GroupService, RegionService, UserService
 from bot.fsm import RegistrationFSM
-from bot.keyboards import (GroupCallbackFactory, RegionCallbackFactory,
+from bot.keyboards import (GroupCallbackFactory, RegionCallbackFactory, create_main_keyboard,
                            create_regions_keyboard)
 
 logger = logging.getLogger(__name__)
@@ -74,9 +74,8 @@ async def handle_region_selection(
     user_service: UserService
 ):
     """
-    Обробляє вибір регіону та завершує реєстрацію.
+    Обробляє вибір регіону, завершує реєстрацію та надсилає головне меню.
     """
-
     if not isinstance(query.message, Message):
         await query.answer("Не вдалося обробити натискання, повідомлення недоступне.")
         return
@@ -89,12 +88,7 @@ async def handle_region_selection(
     telegram_id = user.id
     username = user.username
 
-    regions_map = user_data.get("regions_map", {})
-    region_name = regions_map.get(callback_data.id, "Невідомий регіон")
-
-    await query.message.edit_text(f"✅ Група: <b>{user_data.get('group_name')}</b>\n"
-                                  f"✅ Регіон: <b>{region_name}</b>\n\n"
-                                  "Реєструю вас...")
+    await query.message.edit_text("Реєструю вас...")
 
     try:
         response_text = await user_service.register_new_user(
@@ -103,13 +97,24 @@ async def handle_region_selection(
             group_id_str=group_id_str,
             region_id_str=region_id_str
         )
+        
         await query.message.edit_text(response_text)
+        
+        await query.message.answer(
+            f"Чудово, {user.first_name}! Тепер ви можете користуватися ботом. Оберіть дію з меню нижче:",
+            reply_markup=create_main_keyboard()
+        )
+
     except ValueError as e:
         await query.message.edit_text(str(e))
     except ResourceNotFoundError:
         await query.message.edit_text("❌ Сталася дивна помилка: обрану групу або регіон не знайдено. Спробуйте /start.")
     except ApiBadRequestError:
-        await query.message.edit_text("⚠️ Ви вже зареєстровані.")
+        await query.message.edit_text("⚠️ Ви вже були зареєстровані.")
+        await query.message.answer(
+            "Оберіть дію з меню:",
+            reply_markup=create_main_keyboard()
+        )
     except Exception:
         await query.message.edit_text("Сталася непередбачена помилка. Спробуйте пізніше.")
     finally:

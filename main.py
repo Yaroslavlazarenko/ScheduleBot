@@ -9,9 +9,9 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from api import ApiClient
 from api.gateways import (GroupGateway, RegionGateway, ScheduleGateway,
-                          UserGateway)
+                          UserGateway, TeacherGateway)
 from application.services import (GroupService, RegionService, ScheduleService,
-                                  UserService)
+                                  UserService, TeacherService)
 from bot import handlers
 from bot.middlewares import DiMiddleware
 from config import settings
@@ -32,11 +32,13 @@ async def main():
     user_gateway = UserGateway(client=api_client)
     group_gateway = GroupGateway(client=api_client)
     region_gateway = RegionGateway(client=api_client)
+    schedule_gateway = ScheduleGateway(client=api_client)
+    teacher_gateway = TeacherGateway(client=api_client)
 
     group_service = GroupService(gateway=group_gateway)
     user_service = UserService(gateway=user_gateway)
     region_service = RegionService(gateway=region_gateway)
-    schedule_gateway = ScheduleGateway(client=api_client)
+    teacher_service = TeacherService(gateway=teacher_gateway)
 
     schedule_service = ScheduleService(
         schedule_gateway=schedule_gateway,
@@ -58,7 +60,8 @@ async def main():
             user_service=user_service,
             group_service=group_service,
             region_service=region_service,
-            schedule_service=schedule_service
+            schedule_service=schedule_service,
+            teacher_service=teacher_service
         )
     )
 
@@ -68,6 +71,7 @@ async def main():
     dispatcher.include_router(handlers.user_router)
     dispatcher.include_router(handlers.schedule_router)
     dispatcher.include_router(handlers.inline_router)
+    dispatcher.include_router(handlers.teacher_router)
 
     # --- Bot Start ---
     await bot.delete_webhook(drop_pending_updates=True)

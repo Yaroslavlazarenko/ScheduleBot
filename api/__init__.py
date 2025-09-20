@@ -7,6 +7,8 @@ from .dto import (
     LessonDTO,
     ScheduleOverrideInfoDTO,
     DailyScheduleDTO,
+    ApiTeacherDTO,
+    ApiTeacherInfoDTO,
 )
 from .exceptions import (
     ApiClientError,
@@ -26,4 +28,6 @@ __all__ = [
     'LessonDTO',
     'ScheduleOverrideInfoDTO',
     'DailyScheduleDTO',
+    'ApiTeacherDTO',
+    'ApiTeacherInfoDTO',
 ]

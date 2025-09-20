@@ -14,12 +14,49 @@ schedule_router = Router(name="schedule_router")
 
 @schedule_router.message(F.text == "🗓 Отримати розклад")
 async def handle_get_schedule(message: Message, schedule_service: ScheduleService):
-    """Обробляє запит на отримання розкладу на поточний день."""
+    """
+    Обробляє запит на отримання розкладу на поточний день,
+    відправляє розклад і видаляє повідомлення користувача.
+    """
     if not message.from_user:
         return
     
-    today = date.today()
-    await send_schedule_for_date(message, schedule_service, message.from_user.id, today)
+    telegram_id = message.from_user.id
+    target_date = date.today()
+
+    try:
+        schedule_dto = await schedule_service.get_schedule_for_day(telegram_id, target_date)
+        response_text = schedule_service.format_schedule_message(schedule_dto)
+        keyboard = create_schedule_navigation_keyboard(target_date, original_user_id=telegram_id)
+        
+        await message.answer(
+            response_text, 
+            reply_markup=keyboard,
+            link_preview_options=LinkPreviewOptions(is_disabled=True)
+        )
+    except (ValueError, ResourceNotFoundError) as e:
+        await message.answer(f"❌ Помилка: {e}\nСпробуйте почати з /start.")
+    except Exception:
+        logger.exception("Failed to send schedule for date %s", target_date)
+        await message.answer("Сталася непередбачена помилка при отриманні розкладу.")
+    finally:
+        try:
+            await message.delete()
+        except TelegramBadRequest as e:
+            logger.warning("Could not delete user's schedule request message: %s", e)
+
+@schedule_router.callback_query(ScheduleCallbackFactory.filter(F.action == "close"))
+async def handle_close_schedule(query: CallbackQuery):
+    """
+    Обробляє натискання кнопки "Закрити" та видаляє повідомлення з розкладом.
+    """
+    if isinstance(query.message, Message):
+        try:
+            await query.message.delete()
+        except TelegramBadRequest as e:
+            logger.warning("Could not delete schedule message: %s", e)
+    
+    await query.answer()
 
 @schedule_router.callback_query(ScheduleCallbackFactory.filter())
 async def handle_schedule_navigation(
@@ -62,30 +99,6 @@ async def handle_schedule_navigation(
         )
 
     await query.answer()
-
-
-async def send_schedule_for_date(
-    message: Message,
-    schedule_service: ScheduleService,
-    telegram_id: int,
-    target_date: date
-):
-    """Відправляє нове повідомлення з розкладом."""
-    try:
-        schedule_dto = await schedule_service.get_schedule_for_day(telegram_id, target_date)
-        response_text = schedule_service.format_schedule_message(schedule_dto)
-        keyboard = create_schedule_navigation_keyboard(target_date, original_user_id=telegram_id)
-        await message.answer(
-            response_text, 
-            reply_markup=keyboard,
-            link_preview_options=LinkPreviewOptions(is_disabled=True)
-        )
-    except (ValueError, ResourceNotFoundError) as e:
-        await message.answer(f"❌ Помилка: {e}\nСпробуйте почати з /start.")
-    except Exception:
-        logger.exception("Failed to send schedule for date %s", target_date)
-        await message.answer("Сталася непередбачена помилка при отриманні розкладу.")
-
 
 async def edit_schedule_for_date(
     message: types.Message,
