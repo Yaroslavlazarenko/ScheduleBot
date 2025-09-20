@@ -1,15 +1,24 @@
+from typing import Dict
 from api import ApiCreateUserDTO, ApiUserDTO, ResourceNotFoundError
-from api.gateways import UserGateway # Змінено
+from api.gateways import UserGateway
 
 class UserService:
-    def __init__(self, gateway: UserGateway): # Змінено
-        self._gateway = gateway # Змінено
+    def __init__(self, gateway: UserGateway):
+        self._gateway = gateway
+        self._user_cache: Dict[int, ApiUserDTO] = {}
 
     async def get_user_by_telegram_id(self, telegram_id: int) -> ApiUserDTO | None:
-        """Отримує користувача за telegram_id."""
+        """Отримує користувача за telegram_id, використовуючи кеш."""
+        if telegram_id in self._user_cache:
+            return self._user_cache[telegram_id]
+
         try:
-            user_data = await self._gateway.get_user_by_telegram_id(telegram_id) # Змінено
-            return ApiUserDTO.model_validate(user_data)
+            user_data = await self._gateway.get_user_by_telegram_id(telegram_id)
+            user_dto = ApiUserDTO.model_validate(user_data)
+            
+            self._user_cache[telegram_id] = user_dto
+            return user_dto
+            
         except ResourceNotFoundError:
             return None
 
@@ -30,5 +39,5 @@ class UserService:
         )
 
         await self._gateway.create_user(user_data=user_dto.model_dump(by_alias=True))
-        
+
         return f"✅ Вас успішно зареєстровано!"

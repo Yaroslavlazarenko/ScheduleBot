@@ -8,7 +8,8 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from api import ApiClient
-from api.gateways import GroupGateway, RegionGateway, UserGateway
+from api.gateways import (GroupGateway, RegionGateway, ScheduleGateway,
+                          UserGateway)
 from application.services import (GroupService, RegionService, ScheduleService,
                                   UserService)
 from bot import handlers
@@ -35,8 +36,14 @@ async def main():
     group_service = GroupService(gateway=group_gateway)
     user_service = UserService(gateway=user_gateway)
     region_service = RegionService(gateway=region_gateway)
-    schedule_service = ScheduleService(user_gateway=user_gateway, user_service=user_service)
+    schedule_gateway = ScheduleGateway(client=api_client)
 
+    schedule_service = ScheduleService(
+        schedule_gateway=schedule_gateway,
+        user_service=user_service,
+        region_service=region_service
+    )
+    
     # --- Bot Initialization ---
     storage = MemoryStorage()
     bot = Bot(

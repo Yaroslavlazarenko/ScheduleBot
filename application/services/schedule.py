@@ -1,7 +1,10 @@
 from datetime import date, time
 from api import DailyScheduleDTO
-from api.gateways import UserGateway
+
+from api.gateways import ScheduleGateway
+
 from .user import UserService
+from .region import RegionService
 
 MONTHS_UA = {
     1: "Січня", 2: "Лютого", 3: "Березня", 4: "Квітня",
@@ -23,18 +26,39 @@ def get_seasonal_emoji(current_date: date) -> str:
 
 
 class ScheduleService:
-    def __init__(self, user_gateway: UserGateway, user_service: UserService):
-        self._user_gateway = user_gateway
+    def __init__(
+        self,
+        schedule_gateway: ScheduleGateway,
+        user_service: UserService,
+        region_service: RegionService
+    ):
+        self._schedule_gateway = schedule_gateway
         self._user_service = user_service
+        self._region_service = region_service
 
     async def get_schedule_for_day(self, telegram_id: int, schedule_date: date) -> DailyScheduleDTO:
-        """Отримує розклад для користувача на заданий день."""
+        """Отримує розклад для користувача на заданий день, використовуючи новий ендпоінт."""
         user = await self._user_service.get_user_by_telegram_id(telegram_id)
         if not user:
             raise ValueError("Користувача не знайдено. Будь ласка, зареєструйтесь: /start")
         
+        regions = await self._region_service.get_all_regions()
+        user_region = next((r for r in regions if r.id == user.region_id), None)
+        
+        if not user_region:
+            raise ValueError(f"Не вдалося знайти регіон з ID={user.region_id} для користувача.")
+
+        time_zone_id = await self._region_service.get_timezone_by_id(user.region_id)
+        if not time_zone_id:
+            raise ValueError(f"Не вдалося знайти часовий пояс для регіону з ID={user.region_id}.")
+                
         date_str = schedule_date.isoformat()
-        schedule_data = await self._user_gateway.get_schedule_for_user(user.id, date_str)
+        
+        schedule_data = await self._schedule_gateway.get_daily_schedule_for_group(
+            group_id=user.group_id,
+            time_zone_id=user_region.time_zone_id,
+            date=date_str
+        )
         
         return DailyScheduleDTO.model_validate(schedule_data)
 
@@ -43,16 +67,13 @@ class ScheduleService:
         schedule_date = date.fromisoformat(schedule.date)
         
         seasonal_emoji = get_seasonal_emoji(schedule_date)
-        
         day = schedule_date.day
         month_name = MONTHS_UA.get(schedule_date.month, "")
-
-        week_type_full = "парний" if schedule.is_even_week else "непарний"
-
-        header_line1 = f"{seasonal_emoji} {schedule.day_of_week_name.capitalize()} {day:02} {month_name}"
-        header_line2 = f"Тиждень {schedule.week_number} ({week_type_full})"
+        week_type = "парний" if schedule.is_even_week else "непарний"
         
-        parts = [header_line1, header_line2]
+        header = f"{seasonal_emoji} {schedule.day_of_week_abbreviation.capitalize()}. {day:02} {month_name} ┃ Тижд. {schedule.week_number} ({week_type[0]}/пар)"
+        
+        parts = [header]
         
         if schedule.override_info:
             parts.append(f"❗️ <b>Заміна:</b> {schedule.override_info.substituted_day_name}")
@@ -68,16 +89,14 @@ class ScheduleService:
                 start_time = time.fromisoformat(lesson.pair_start_time).strftime('%-H:%M')
                 end_time = time.fromisoformat(lesson.pair_end_time).strftime('%-H:%M')
                 
-                lesson_name = lesson.subject_name
+                lesson_name = lesson.subject_abbreviation
                 if lesson.lesson_url:
                     lesson_name = f"<a href='{lesson.lesson_url}'>{lesson_name}</a>"
 
-                teacher_name = lesson.teacher_full_name
                 lesson_line = (
                     f"{lesson.pair_number}. {lesson_name} "
-                    f"({lesson.subject_type_abbreviation}) "
+                    f"({lesson.subject_type_abbreviation.lower()}.) "
                     f"({start_time}-{end_time})"
-                    f"\n👤 {teacher_name}"
                 )
                 parts.append(lesson_line)
 
