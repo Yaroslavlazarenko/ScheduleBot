@@ -44,11 +44,14 @@ async def handle_group_selection(
     await state.update_data(group_id=callback_data.id, group_name=callback_data.name)
 
     try:
-        regions = await region_service.get_all_timezones()
+        regions = await region_service.get_all_regions()
         if not regions:
             await query.message.edit_text("Помилка: не вдалося завантажити список часових поясів. Спробуйте пізніше.")
             await state.clear()
             return
+
+        regions_map = {region.id: region.name for region in regions}
+        await state.update_data(regions_map=regions_map)
 
         keyboard = create_regions_keyboard(regions)
         await query.message.edit_text(f"✅ Ви обрали групу: <b>{callback_data.name}</b>\n\n"
@@ -86,8 +89,11 @@ async def handle_region_selection(
     telegram_id = user.id
     username = user.username
 
+    regions_map = user_data.get("regions_map", {})
+    region_name = regions_map.get(callback_data.id, "Невідомий регіон")
+
     await query.message.edit_text(f"✅ Група: <b>{user_data.get('group_name')}</b>\n"
-                                  f"✅ Регіон: <b>{callback_data.number}</b>\n\n"
+                                  f"✅ Регіон: <b>{region_name}</b>\n\n"
                                   "Реєструю вас...")
 
     try:

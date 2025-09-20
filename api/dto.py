@@ -4,9 +4,11 @@ class ApiGroupDTO(BaseModel):
     id: int
     name: str
 
+
 class ApiRegionDTO(BaseModel):
     id: int
-    number: int
+    name: str
+    time_zone_id: str = Field(alias='timeZoneId')
 
 class ApiUserDTO(BaseModel):
     id: int

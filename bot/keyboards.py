@@ -11,7 +11,6 @@ class GroupCallbackFactory(CallbackData, prefix="group"):
 
 class RegionCallbackFactory(CallbackData, prefix="region"):
     id: int
-    number: int
 
 def create_groups_keyboard(groups: List[ApiGroupDTO], columns: int = 2) -> InlineKeyboardMarkup:
     """
@@ -37,18 +36,16 @@ def create_groups_keyboard(groups: List[ApiGroupDTO], columns: int = 2) -> Inlin
         
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def create_regions_keyboard(regions: List[ApiRegionDTO], columns: int = 3) -> InlineKeyboardMarkup:
+def create_regions_keyboard(regions: List[ApiRegionDTO], columns: int = 1) -> InlineKeyboardMarkup:
     """
-    Створює інлайн-клавіатуру зі списком регіонів у вигляді сітки.
-    :param regions: Список об'єктів регіонів.
-    :param columns: Кількість колонок у сітці (за замовчуванням 3, оскільки номери коротші).
+    Створює інлайн-клавіатуру зі списком регіонів.
     """
     buttons = []
     row = []
     for region in regions:
         btn = InlineKeyboardButton(
-            text=str(region.number),
-            callback_data=RegionCallbackFactory(id=region.id, number=region.number).pack()
+            text=region.name,
+            callback_data=RegionCallbackFactory(id=region.id).pack()
         )
         row.append(btn)
         
