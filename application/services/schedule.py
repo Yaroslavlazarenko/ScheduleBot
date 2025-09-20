@@ -72,7 +72,7 @@ class ScheduleService:
         week_type = "парний" if schedule.is_even_week else "непарний"
         
         header1 = f"{seasonal_emoji} {schedule.day_of_week_name.capitalize()}. {day:02} {month_name}"
-        header2 = f"Тиждень {schedule.week_number} ({week_type})"
+        header2 = f"{schedule.group_name} Тиждень {schedule.week_number} ({week_type})"
         parts = [header1, header2]
         
         if schedule.override_info:

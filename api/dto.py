@@ -39,6 +39,7 @@ class DailyScheduleDTO(BaseModel):
     week_number: int = Field(alias='weekNumber')
     is_even_week: bool = Field(alias='isEvenWeek')
     override_info: ScheduleOverrideInfoDTO | None = Field(None, alias='overrideInfo')
+    group_name: str = Field(alias='groupName')
     lessons: list[LessonDTO]
 
 class ApiCreateUserDTO(BaseModel):
