@@ -64,3 +64,35 @@ class ApiCreateUserDTO(BaseModel):
 
     class Config:
         populate_by_name = True
+
+class ApiGroupedSubjectDTO(BaseModel):
+    name: str
+    abbreviation: str
+
+class ApiSubjectTypeDTO(BaseModel):
+    id: int
+    name: str
+    abbreviation: str
+
+class ApiSubjectInfoDTO(BaseModel):
+    info_type_id: int = Field(alias='infoTypeId')
+    info_type_name: str = Field(alias='infoTypeName')
+    value: str
+
+class ApiSubjectTeacherDTO(BaseModel):
+    first_name: str = Field(alias='firstName')
+    last_name: str = Field(alias='lastName')
+    middle_name: str | None = Field(None, alias='middleName')
+    full_name: str = Field(alias='fullName')
+
+class ApiSubjectVariantDTO(BaseModel):
+    id: int
+    subject_type: ApiSubjectTypeDTO = Field(alias='subjectType')
+    teachers: list[ApiSubjectTeacherDTO] = []
+    infos: list[ApiSubjectInfoDTO] = []
+
+class ApiGroupedSubjectDetailsDTO(BaseModel):
+    name: str
+    short_name: str = Field(alias='shortName')
+    abbreviation: str
+    variants: list[ApiSubjectVariantDTO] = []

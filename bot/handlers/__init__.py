@@ -4,6 +4,7 @@ from .schedule import schedule_router
 from .inline import inline_router
 from .teacher import teacher_router
 from .settings import settings_router
+from .subject import subject_router
 
 __all__ = [
     'common_router',
@@ -11,5 +12,6 @@ __all__ = [
     'schedule_router',
     'inline_router',
     'teacher_router',
-    'settings_router'
+    'settings_router',
+    'subject_router'
 ]

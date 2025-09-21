@@ -9,6 +9,12 @@ from .dto import (
     DailyScheduleDTO,
     ApiTeacherDTO,
     ApiTeacherInfoDTO,
+    ApiGroupedSubjectDTO,
+    ApiGroupedSubjectDetailsDTO,
+    ApiSubjectVariantDTO,
+    ApiSubjectInfoDTO,
+    ApiSubjectTeacherDTO,
+    ApiSubjectTypeDTO
 )
 from .exceptions import (
     ApiClientError,
@@ -30,4 +36,10 @@ __all__ = [
     'DailyScheduleDTO',
     'ApiTeacherDTO',
     'ApiTeacherInfoDTO',
+    'ApiGroupedSubjectDTO',
+    'ApiGroupedSubjectDetailsDTO',
+    'ApiSubjectVariantDTO',
+    'ApiSubjectInfoDTO',
+    'ApiSubjectTeacherDTO',
+    'ApiSubjectTypeDTO',
 ]

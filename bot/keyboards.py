@@ -5,7 +5,7 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, 
                            KeyboardButton, ReplyKeyboardMarkup)
 
-from api import ApiGroupDTO, ApiRegionDTO, ApiTeacherDTO
+from api import ApiGroupDTO, ApiRegionDTO, ApiTeacherDTO, ApiGroupedSubjectDTO
 
 class GroupCallbackFactory(CallbackData, prefix="group"):
     id: int
@@ -26,6 +26,10 @@ class TeacherCallbackFactory(CallbackData, prefix="teacher"):
 class SettingsCallbackFactory(CallbackData, prefix="settings"):
     action: str
 
+class SubjectCallbackFactory(CallbackData, prefix="subject"):
+    action: str
+    abbreviation: str | None = None
+
 def create_main_keyboard() -> ReplyKeyboardMarkup:
     """Створює головну клавіатуру з основними діями."""
     return ReplyKeyboardMarkup(
@@ -35,6 +39,7 @@ def create_main_keyboard() -> ReplyKeyboardMarkup:
                 KeyboardButton(text="👨‍🏫 Вчителі")
             ],
             [
+                KeyboardButton(text="📚 Предмети"),
                 KeyboardButton(text="⚙️ Налаштування")
             ]
         ],
@@ -203,5 +208,39 @@ def create_teacher_details_keyboard() -> InlineKeyboardMarkup:
     button = InlineKeyboardButton(
         text="⬅️ Назад",
         callback_data=TeacherCallbackFactory(action="back").pack()
+    )
+    return InlineKeyboardMarkup(inline_keyboard=[[button]])
+
+def create_subjects_keyboard(subjects: List[ApiGroupedSubjectDTO], columns: int = 2) -> InlineKeyboardMarkup:
+    """Створює інлайн-клавіатуру зі списком предметів."""
+    buttons = []
+    row = []
+    for subject in sorted(subjects, key=lambda s: s.name):
+        btn = InlineKeyboardButton(
+            text=subject.abbreviation,
+            callback_data=SubjectCallbackFactory(action="select", abbreviation=subject.abbreviation).pack()
+        )
+        row.append(btn)
+        
+        if len(row) == columns:
+            buttons.append(row)
+            row = []
+            
+    if row:
+        buttons.append(row)
+
+    close_button = InlineKeyboardButton(
+        text="Закрити ❌",
+        callback_data=SubjectCallbackFactory(action="close").pack()
+    )
+    buttons.append([close_button])
+        
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def create_subject_details_keyboard() -> InlineKeyboardMarkup:
+    """Створює клавіатуру з кнопкою "Назад" до списку предметів."""
+    button = InlineKeyboardButton(
+        text="⬅️ Назад",
+        callback_data=SubjectCallbackFactory(action="back").pack()
     )
     return InlineKeyboardMarkup(inline_keyboard=[[button]])
