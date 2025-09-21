@@ -1,22 +1,27 @@
-from typing import Dict
+import time
+from typing import Dict, Tuple
 from api import ApiCreateUserDTO, ApiUserDTO, ResourceNotFoundError
 from api.gateways import UserGateway
+
+CACHE_TTL_SECONDS = 3600  # 1 година
 
 class UserService:
     def __init__(self, gateway: UserGateway):
         self._gateway = gateway
-        self._user_cache: Dict[int, ApiUserDTO] = {}
+        self._user_cache: Dict[int, Tuple[ApiUserDTO, float]] = {}
 
     async def get_user_by_telegram_id(self, telegram_id: int) -> ApiUserDTO | None:
-        """Отримує користувача за telegram_id, використовуючи кеш."""
+        """Отримує користувача за telegram_id, використовуючи кеш з TTL."""
         if telegram_id in self._user_cache:
-            return self._user_cache[telegram_id]
+            user_dto, timestamp = self._user_cache[telegram_id]
+            if time.time() - timestamp < CACHE_TTL_SECONDS:
+                return user_dto
 
         try:
             user_data = await self._gateway.get_user_by_telegram_id(telegram_id)
             user_dto = ApiUserDTO.model_validate(user_data)
             
-            self._user_cache[telegram_id] = user_dto
+            self._user_cache[telegram_id] = (user_dto, time.time())
             return user_dto
             
         except ResourceNotFoundError:

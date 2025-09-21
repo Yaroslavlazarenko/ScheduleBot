@@ -1,17 +1,30 @@
-from typing import List
+import time
+from typing import List, Tuple
 from api import ApiGroupDTO
 from api.gateways import GroupGateway
+
+CACHE_TTL_SECONDS = 3600  # 1 година
 
 class GroupService:
     def __init__(self, gateway: GroupGateway):
         self._gateway = gateway
+        self._groups_cache: Tuple[List[ApiGroupDTO], float] | None = None
 
     async def get_all_groups(self) -> List[ApiGroupDTO]:
-        """Отримує всі групи з API."""
+        """Отримує всі групи з API, використовуючи кеш з TTL."""
+        if self._groups_cache is not None:
+            data, timestamp = self._groups_cache
+            if time.time() - timestamp < CACHE_TTL_SECONDS:
+                return data
+
         response_data = await self._gateway.get_all_groups()
         if not response_data:
+            self._groups_cache = ([], time.time()) # Кешуємо пустий результат
             return []
-        return [ApiGroupDTO.model_validate(group) for group in response_data]
+        
+        groups = [ApiGroupDTO.model_validate(group) for group in response_data]
+        self._groups_cache = (groups, time.time())
+        return groups
 
     async def format_groups_list(self) -> str:
         """
