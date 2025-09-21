@@ -75,6 +75,18 @@ def create_schedule_navigation_keyboard(current_date: date, original_user_id: in
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+def create_show_schedule_keyboard(original_user_id: int) -> InlineKeyboardMarkup:
+    """Створює клавіатуру з кнопкою для показу розкладу на сьогодні."""
+    button = InlineKeyboardButton(
+        text="🗓 Отримати розклад",
+        callback_data=ScheduleCallbackFactory(
+            action="show", 
+            current_date=date.today().isoformat(),
+            original_user_id=original_user_id
+        ).pack()
+    )
+    return InlineKeyboardMarkup(inline_keyboard=[[button]])
+
 def create_groups_keyboard(groups: List[ApiGroupDTO], columns: int = 2) -> InlineKeyboardMarkup:
     """
     Створює інлайн-клавіатуру зі списком груп у вигляді сітки.

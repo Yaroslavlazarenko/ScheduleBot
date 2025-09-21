@@ -85,17 +85,14 @@ class ScheduleService:
         if not schedule.lessons:
             parts.append("🎉 Пар немає, можна відпочити!")
         else:
-            # Створюємо словник для швидкого доступу до пари за її номером
             lessons_by_number = {lesson.pair_number: lesson for lesson in schedule.lessons}
-            # Знаходимо максимальний номер пари на цей день
+
             max_pair = max(lessons_by_number.keys())
 
-            # Ітеруємо від 1-ї до останньої пари, щоб показати "вікна"
             for pair_num in range(1, max_pair + 1):
                 lesson = lessons_by_number.get(pair_num)
                 
                 if lesson:
-                    # Якщо пара існує, форматуємо її
                     start_time = time.fromisoformat(lesson.pair_start_time).strftime('%-H:%M')
                     end_time = time.fromisoformat(lesson.pair_end_time).strftime('%-H:%M')
                     
@@ -111,7 +108,6 @@ class ScheduleService:
                     )
                     parts.append(lesson_line)
                 else:
-                    # Якщо пари немає, показуємо "вікно"
                     parts.append(f"{pair_num}. 😴 Вікно")
 
         return "\n".join(parts)

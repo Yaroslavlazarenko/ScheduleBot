@@ -6,7 +6,8 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import LinkPreviewOptions, Message, CallbackQuery
 
 from application.services import ScheduleService
-from bot.keyboards import create_schedule_navigation_keyboard, ScheduleCallbackFactory
+from bot.keyboards import (create_schedule_navigation_keyboard, ScheduleCallbackFactory, 
+                           create_show_schedule_keyboard) 
 from api.exceptions import ResourceNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -46,19 +47,55 @@ async def handle_get_schedule(message: Message, schedule_service: ScheduleServic
             logger.warning("Could not delete user's schedule request message: %s", e)
 
 @schedule_router.callback_query(ScheduleCallbackFactory.filter(F.action == "close"))
-async def handle_close_schedule(query: CallbackQuery):
+async def handle_close_schedule(query: CallbackQuery, callback_data: ScheduleCallbackFactory, bot: Bot):
     """
-    Обробляє натискання кнопки "Закрити" та видаляє повідомлення з розкладом.
+    Обробляє натискання кнопки "Закрити".
+    - Для звичайних повідомлень - видаляє їх.
+    - Для інлайн-повідомлень - редагує, показуючи кнопку "Отримати розклад".
     """
     if isinstance(query.message, Message):
         try:
             await query.message.delete()
         except TelegramBadRequest as e:
             logger.warning("Could not delete schedule message: %s", e)
+    elif query.inline_message_id:
+        try:
+            keyboard = create_show_schedule_keyboard(callback_data.original_user_id)
+            await bot.edit_message_text(
+                text="Розклад згорнуто",
+                inline_message_id=query.inline_message_id,
+                reply_markup=keyboard
+            )
+        except TelegramBadRequest as e:
+            logger.warning("Could not edit inline message on close: %s", e)
     
     await query.answer()
 
-@schedule_router.callback_query(ScheduleCallbackFactory.filter())
+@schedule_router.callback_query(ScheduleCallbackFactory.filter(F.action == "show"))
+async def handle_show_schedule(
+    query: CallbackQuery,
+    callback_data: ScheduleCallbackFactory,
+    schedule_service: ScheduleService,
+    bot: Bot
+):
+    """Обробляє натискання кнопки 'Отримати розклад' для інлайн-повідомлення."""
+    if not query.inline_message_id:
+        await query.answer("Ця дія доступна лише для інлайн-розкладу.", show_alert=True)
+        return
+        
+    target_date = date.today()
+    telegram_id = callback_data.original_user_id
+    
+    await edit_inline_schedule_for_date(
+        bot,
+        query.inline_message_id,
+        schedule_service,
+        telegram_id,
+        target_date
+    )
+    await query.answer()
+
+@schedule_router.callback_query(ScheduleCallbackFactory.filter(F.action.in_({"prev", "next"})))
 async def handle_schedule_navigation(
     query: CallbackQuery,
     callback_data: ScheduleCallbackFactory,
@@ -71,11 +108,8 @@ async def handle_schedule_navigation(
     
     if callback_data.action == "next":
         target_date = current_date + timedelta(days=1)
-    elif callback_data.action == "prev":
-        target_date = current_date - timedelta(days=1)
     else:
-        await query.answer("Невідома дія.")
-        return
+        target_date = current_date - timedelta(days=1)
 
     if isinstance(query.message, Message):
         await edit_schedule_for_date(
