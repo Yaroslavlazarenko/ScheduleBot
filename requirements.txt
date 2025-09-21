@@ -1,5 +1,4 @@
 aiogram==3.5.0
-aiohttp
-pydantic
-pydantic-settings
-python-dotenv
+aiohttp==3.9.5
+pydantic==2.7.1
+pydantic-settings==2.2.1
