@@ -41,3 +41,25 @@ class UserService:
         await self._gateway.create_user(user_data=user_dto.model_dump(by_alias=True))
 
         return f"✅ Вас успішно зареєстровано!"
+
+    async def change_user_group(self, telegram_id: int, new_group_id: int) -> None:
+        """Змінює групу для користувача та інвалідує кеш."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if not user:
+            raise ValueError("Користувача не знайдено. Будь ласка, зареєструйтесь: /start")
+        
+        await self._gateway.change_user_group(user_id=user.id, new_group_id=new_group_id)
+
+        if telegram_id in self._user_cache:
+            del self._user_cache[telegram_id]
+
+    async def change_user_region(self, telegram_id: int, new_region_id: int) -> None:
+        """Змінює регіон для користувача та інвалідує кеш."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if not user:
+            raise ValueError("Користувача не знайдено. Будь ласка, зареєструйтесь: /start")
+        
+        await self._gateway.change_user_region(user_id=user.id, new_region_id=new_region_id)
+
+        if telegram_id in self._user_cache:
+            del self._user_cache[telegram_id]

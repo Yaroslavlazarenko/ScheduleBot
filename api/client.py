@@ -33,3 +33,6 @@ class ApiClient:
 
     async def post(self, endpoint: str, data: dict) -> Any:
         return await self._request('POST', endpoint, data=data)
+
+    async def put(self, endpoint: str, data: dict) -> Any:
+        return await self._request('PUT', endpoint, data=data)

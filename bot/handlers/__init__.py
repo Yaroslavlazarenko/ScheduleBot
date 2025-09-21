@@ -3,11 +3,13 @@ from .user import user_router
 from .schedule import schedule_router
 from .inline import inline_router
 from .teacher import teacher_router
+from .settings import settings_router
 
 __all__ = [
     'common_router',
     'user_router',
     'schedule_router',
     'inline_router',
-    'teacher_router'
+    'teacher_router',
+    'settings_router'
 ]

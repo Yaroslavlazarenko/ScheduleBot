@@ -23,6 +23,9 @@ class TeacherCallbackFactory(CallbackData, prefix="teacher"):
     action: str
     id: int | None = None 
 
+class SettingsCallbackFactory(CallbackData, prefix="settings"):
+    action: str
+
 def create_main_keyboard() -> ReplyKeyboardMarkup:
     """Створює головну клавіатуру з основними діями."""
     return ReplyKeyboardMarkup(
@@ -30,11 +33,39 @@ def create_main_keyboard() -> ReplyKeyboardMarkup:
             [
                 KeyboardButton(text="🗓 Отримати розклад"), 
                 KeyboardButton(text="👨‍🏫 Вчителі")
+            ],
+            [
+                KeyboardButton(text="⚙️ Налаштування")
             ]
         ],
         resize_keyboard=True,
         one_time_keyboard=False
     )
+
+def create_settings_keyboard() -> InlineKeyboardMarkup:
+    """Створює інлайн-клавіатуру для меню налаштувань."""
+    buttons = [
+        [
+            InlineKeyboardButton(
+                text="Змінити групу",
+                callback_data=SettingsCallbackFactory(action="change_group").pack()
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="Змінити часовий пояс",
+                callback_data=SettingsCallbackFactory(action="change_region").pack()
+            )
+        ],
+        [
+             InlineKeyboardButton(
+                text="Закрити ❌",
+                callback_data=SettingsCallbackFactory(action="close").pack()
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 
 def create_schedule_navigation_keyboard(current_date: date, original_user_id: int) -> InlineKeyboardMarkup:
     """Створює інлайн-клавіатуру для навігації по днях розкладу та його закриття."""

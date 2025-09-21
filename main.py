@@ -72,6 +72,7 @@ async def main():
     dispatcher.include_router(handlers.schedule_router)
     dispatcher.include_router(handlers.inline_router)
     dispatcher.include_router(handlers.teacher_router)
+    dispatcher.include_router(handlers.settings_router)
 
     # --- Bot Start ---
     await bot.delete_webhook(drop_pending_updates=True)

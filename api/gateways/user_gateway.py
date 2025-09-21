@@ -19,3 +19,13 @@ class UserGateway:
     async def create_user(self, user_data: dict) -> Any:
         """Створює нового користувача."""
         return await self._client.post('/api/User', data=user_data)
+
+    async def change_user_group(self, user_id: int, new_group_id: int) -> Any:
+        """Змінює групу для користувача."""
+        data = {'newGroupId': new_group_id}
+        return await self._client.put(f'/api/User/{user_id}/group', data=data)
+
+    async def change_user_region(self, user_id: int, new_region_id: int) -> Any:
+        """Змінює регіон для користувача."""
+        data = {'newRegionId': new_region_id}
+        return await self._client.put(f'/api/User/{user_id}/region', data=data)
