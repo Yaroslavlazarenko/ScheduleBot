@@ -40,7 +40,7 @@ async def main():
     user_service = UserService(gateway=user_gateway)
     region_service = RegionService(gateway=region_gateway)
     teacher_service = TeacherService(gateway=teacher_gateway)
-    subject_service = SubjectService(gateway=subject_gateway)
+    subject_service = SubjectService(gateway=subject_gateway, teacher_service=teacher_service)
 
     schedule_service = ScheduleService(
         schedule_gateway=schedule_gateway,

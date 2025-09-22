@@ -79,16 +79,10 @@ class ApiSubjectInfoDTO(BaseModel):
     info_type_name: str = Field(alias='infoTypeName')
     value: str
 
-class ApiSubjectTeacherDTO(BaseModel):
-    first_name: str = Field(alias='firstName')
-    last_name: str = Field(alias='lastName')
-    middle_name: str | None = Field(None, alias='middleName')
-    full_name: str = Field(alias='fullName')
-
 class ApiSubjectVariantDTO(BaseModel):
     id: int
     subject_type: ApiSubjectTypeDTO = Field(alias='subjectType')
-    teachers: list[ApiSubjectTeacherDTO] = []
+    teachers: list[ApiTeacherDTO] = [] 
     infos: list[ApiSubjectInfoDTO] = []
 
 class ApiGroupedSubjectDetailsDTO(BaseModel):

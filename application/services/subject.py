@@ -2,12 +2,14 @@ import time
 from typing import List, Dict, Tuple
 from api import ApiGroupedSubjectDTO, ApiGroupedSubjectDetailsDTO, ResourceNotFoundError
 from api.gateways.subject_gateway import SubjectGateway
+from .teacher import TeacherService
 
 CACHE_TTL_SECONDS = 3600  # 1 година
 
 class SubjectService:
-    def __init__(self, gateway: SubjectGateway):
+    def __init__(self, gateway: SubjectGateway, teacher_service: TeacherService): # <--- Оновлюємо __init__
         self._gateway = gateway
+        self._teacher_service = teacher_service
         self._subjects_list_cache: Tuple[List[ApiGroupedSubjectDTO], float] | None = None
         self._subject_details_cache: Dict[str, Tuple[ApiGroupedSubjectDetailsDTO, float]] = {}
 
@@ -63,8 +65,18 @@ class SubjectService:
             if not variant.teachers:
                 parts.append("👨‍🏫 <i>Викладачі не призначені.</i>")
             else:
-                teacher_list = "\n".join(f"• {teacher.full_name}" for teacher in variant.teachers)
-                parts.append(f"<b>Викладачі:</b>\n{teacher_list}")
+                teacher_lines = []
+                for teacher in variant.teachers:
+                    teacher_lines.append(f"• {teacher.full_name}")
+                    
+                    # Використовуємо метод з TeacherService, ігноруючи URL фото
+                    _, other_infos = self._teacher_service.extract_photo_and_infos(teacher) # <--- ОСЬ ТУТ ЗМІНА
+                    
+                    if other_infos:
+                        for info in other_infos:
+                            teacher_lines.append(f"    └ <b>{info.info_type_name}:</b> {info.value}")
+                            
+                parts.append(f"<b>Викладачі:</b>\n" + "\n".join(teacher_lines))
             
             parts.append("")
 

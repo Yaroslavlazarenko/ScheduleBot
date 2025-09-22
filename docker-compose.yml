@@ -44,7 +44,7 @@ services:
     build:
       context: .
     container_name: schedule_bot_container
-    restart: unless-stopped
+    restart: always
     env_file:
       - .env
     depends_on:

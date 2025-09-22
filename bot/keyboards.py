@@ -123,11 +123,12 @@ def create_show_schedule_keyboard(original_user_id: int) -> InlineKeyboardMarkup
     )
     return InlineKeyboardMarkup(inline_keyboard=[[button]])
 
-def create_groups_keyboard(groups: List[ApiGroupDTO], columns: int = 2) -> InlineKeyboardMarkup:
+def create_groups_keyboard(groups: List[ApiGroupDTO], columns: int = 2, add_back_button: bool = False) -> InlineKeyboardMarkup:
     """
     Створює інлайн-клавіатуру зі списком груп у вигляді сітки.
     :param groups: Список об'єктів груп.
     :param columns: Кількість колонок у сітці (за замовчуванням 2).
+    :param add_back_button: Додає кнопку "Назад" до меню налаштувань.
     """
     buttons = []
     row = []
@@ -144,12 +145,20 @@ def create_groups_keyboard(groups: List[ApiGroupDTO], columns: int = 2) -> Inlin
             
     if row:
         buttons.append(row)
+
+    if add_back_button:
+        back_button = InlineKeyboardButton(
+            text="⬅️ Назад",
+            callback_data=SettingsCallbackFactory(action="back_to_menu").pack()
+        )
+        buttons.append([back_button])
         
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def create_regions_keyboard(regions: List[ApiRegionDTO], columns: int = 1) -> InlineKeyboardMarkup:
+def create_regions_keyboard(regions: List[ApiRegionDTO], columns: int = 1, add_back_button: bool = False) -> InlineKeyboardMarkup:
     """
     Створює інлайн-клавіатуру зі списком регіонів.
+    :param add_back_button: Додає кнопку "Назад" до меню налаштувань.
     """
     buttons = []
     row = []
@@ -166,6 +175,13 @@ def create_regions_keyboard(regions: List[ApiRegionDTO], columns: int = 1) -> In
             
     if row:
         buttons.append(row)
+
+    if add_back_button:
+        back_button = InlineKeyboardButton(
+            text="⬅️ Назад",
+            callback_data=SettingsCallbackFactory(action="back_to_menu").pack()
+        )
+        buttons.append([back_button])
         
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

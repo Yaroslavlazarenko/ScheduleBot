@@ -2,7 +2,7 @@ import logging
 
 from aiogram import F, Router
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import Message, CallbackQuery 
+from aiogram.types import Message, CallbackQuery, LinkPreviewOptions
 
 from application.services.subject import SubjectService
 from bot.keyboards import create_subjects_keyboard, SubjectCallbackFactory, create_subject_details_keyboard
@@ -51,7 +51,11 @@ async def handle_subject_selection(
     response_text = subject_service.format_subject_details(subject)
     keyboard = create_subject_details_keyboard()
     
-    await query.message.edit_text(response_text, reply_markup=keyboard)
+    await query.message.edit_text(
+        response_text, 
+        reply_markup=keyboard,
+        link_preview_options=LinkPreviewOptions(is_disabled=True)
+    )
     await query.answer()
 
 

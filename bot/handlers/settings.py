@@ -38,6 +38,19 @@ async def handle_close_settings(query: types.CallbackQuery):
             await query.message.edit_reply_markup(reply_markup=None)
     await query.answer()
 
+@settings_router.callback_query(SettingsCallbackFactory.filter(F.action == "back_to_menu"))
+async def handle_back_to_settings_menu(query: types.CallbackQuery, state: FSMContext):
+    """Повертає користувача до головного меню налаштувань та очищує стан."""
+    if not isinstance(query.message, Message):
+        await query.answer("Помилка: повідомлення недоступне.", show_alert=True)
+        return
+
+    await state.clear()
+    await query.message.edit_text(
+        "Оберіть, що бажаєте змінити:",
+        reply_markup=create_settings_keyboard()
+    )
+    await query.answer()
 
 @settings_router.callback_query(SettingsCallbackFactory.filter(F.action == "change_group"))
 async def handle_change_group_request(
@@ -56,7 +69,7 @@ async def handle_change_group_request(
         await query.answer()
         return
 
-    keyboard = create_groups_keyboard(groups)
+    keyboard = create_groups_keyboard(groups, add_back_button=True)
     await query.message.edit_text(
         'Будь ласка, оберіть вашу нову групу зі списку:',
         reply_markup=keyboard
@@ -109,7 +122,7 @@ async def handle_change_region_request(
         await query.answer()
         return
 
-    keyboard = create_regions_keyboard(regions)
+    keyboard = create_regions_keyboard(regions, add_back_button=True)
     await query.message.edit_text(
         'Будь ласка, оберіть ваш новий часовий пояс:',
         reply_markup=keyboard

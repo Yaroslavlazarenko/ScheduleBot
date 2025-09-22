@@ -13,7 +13,6 @@ from .dto import (
     ApiGroupedSubjectDetailsDTO,
     ApiSubjectVariantDTO,
     ApiSubjectInfoDTO,
-    ApiSubjectTeacherDTO,
     ApiSubjectTypeDTO
 )
 from .exceptions import (
@@ -40,6 +39,5 @@ __all__ = [
     'ApiGroupedSubjectDetailsDTO',
     'ApiSubjectVariantDTO',
     'ApiSubjectInfoDTO',
-    'ApiSubjectTeacherDTO',
     'ApiSubjectTypeDTO',
 ]
