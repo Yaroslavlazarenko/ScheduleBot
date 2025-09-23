@@ -9,9 +9,9 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from api import ApiClient
 from api.gateways import (GroupGateway, RegionGateway, ScheduleGateway,
-                          UserGateway, TeacherGateway, SubjectGateway)
+                          UserGateway, TeacherGateway, SubjectGateway, SemesterGateway)
 from application.services import (GroupService, RegionService, ScheduleService,
-                                  UserService, TeacherService, SubjectService)
+                                  UserService, TeacherService, SubjectService, SemesterService)
 from bot import handlers
 from bot.middlewares import DiMiddleware
 from config import settings
@@ -35,11 +35,13 @@ async def main():
     schedule_gateway = ScheduleGateway(client=api_client)
     teacher_gateway = TeacherGateway(client=api_client)
     subject_gateway = SubjectGateway(client=api_client)
+    semester_gateway = SemesterGateway(client=api_client)
 
     group_service = GroupService(gateway=group_gateway)
     user_service = UserService(gateway=user_gateway)
     region_service = RegionService(gateway=region_gateway)
     teacher_service = TeacherService(gateway=teacher_gateway)
+    semester_service = SemesterService(gateway=semester_gateway)
     subject_service = SubjectService(gateway=subject_gateway, teacher_service=teacher_service)
 
     schedule_service = ScheduleService(
@@ -64,7 +66,8 @@ async def main():
             region_service=region_service,
             schedule_service=schedule_service,
             teacher_service=teacher_service,
-            subject_service=subject_service
+            subject_service=subject_service,
+            semester_service=semester_service
         )
     )
 

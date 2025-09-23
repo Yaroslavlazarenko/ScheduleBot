@@ -4,6 +4,7 @@ from .user import UserService
 from .schedule import ScheduleService
 from .teacher import TeacherService
 from .subject import SubjectService
+from .semester import SemesterService
 
 __all__ = [
     'GroupService',
@@ -12,4 +13,5 @@ __all__ = [
     'ScheduleService',
     'TeacherService',
     'SubjectService',
+    'SemesterService',
 ]

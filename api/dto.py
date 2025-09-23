@@ -91,3 +91,8 @@ class ApiGroupedSubjectDetailsDTO(BaseModel):
     short_name: str = Field(alias='shortName')
     abbreviation: str
     variants: list[ApiSubjectVariantDTO] = []
+
+class ApiSemesterDTO(BaseModel):
+    id: int
+    start_date: str = Field(alias='startDate')
+    end_date: str = Field(alias='endDate')

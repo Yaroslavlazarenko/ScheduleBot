@@ -72,28 +72,40 @@ def create_settings_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def create_schedule_navigation_keyboard(current_date: date, original_user_id: int) -> InlineKeyboardMarkup:
-    """Створює інлайн-клавіатуру для навігації по днях розкладу та його закриття."""
+def create_schedule_navigation_keyboard(
+    current_date: date, 
+    original_user_id: int,
+    semester_start: date | None = None,
+    semester_end: date | None = None
+) -> InlineKeyboardMarkup:
+    """Створює інлайн-клавіатуру для навігації по днях розкладу, приховуючи кнопки на межах семестру."""
     date_str = current_date.isoformat()
     
-    navigation_buttons = [
-        InlineKeyboardButton(
-            text="⬅️",
-            callback_data=ScheduleCallbackFactory(
-                action="prev", 
-                current_date=date_str, 
-                original_user_id=original_user_id
-            ).pack()
-        ),
-        InlineKeyboardButton(
-            text="➡️",
-            callback_data=ScheduleCallbackFactory(
-                action="next", 
-                current_date=date_str, 
-                original_user_id=original_user_id
-            ).pack()
+    navigation_buttons = []
+
+    if semester_start is None or current_date > semester_start:
+        navigation_buttons.append(
+            InlineKeyboardButton(
+                text="⬅️",
+                callback_data=ScheduleCallbackFactory(
+                    action="prev", 
+                    current_date=date_str, 
+                    original_user_id=original_user_id
+                ).pack()
+            )
         )
-    ]
+
+    if semester_end is None or current_date < semester_end:
+        navigation_buttons.append(
+            InlineKeyboardButton(
+                text="➡️",
+                callback_data=ScheduleCallbackFactory(
+                    action="next", 
+                    current_date=date_str, 
+                    original_user_id=original_user_id
+                ).pack()
+            )
+        )
     
     close_button = InlineKeyboardButton(
         text="Закрити ❌",
@@ -104,10 +116,10 @@ def create_schedule_navigation_keyboard(current_date: date, original_user_id: in
         ).pack()
     )
     
-    keyboard = [
-        navigation_buttons,
-        [close_button]
-    ]
+    keyboard = []
+    if navigation_buttons:
+        keyboard.append(navigation_buttons)
+    keyboard.append([close_button])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 

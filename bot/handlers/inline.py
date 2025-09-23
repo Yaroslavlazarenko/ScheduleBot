@@ -7,7 +7,7 @@ from aiogram.types import (InlineQuery, InlineQueryResultArticle,
                            InputTextMessageContent, LinkPreviewOptions, InlineKeyboardMarkup, InlineKeyboardButton)
 
 from api.exceptions import ResourceNotFoundError
-from application.services import ScheduleService, UserService
+from application.services import ScheduleService, UserService, SemesterService # <--- Додано
 from bot.keyboards import create_schedule_navigation_keyboard
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,7 @@ async def handle_inline_query(
     query: InlineQuery,
     user_service: UserService,
     schedule_service: ScheduleService,
+    semester_service: SemesterService,
     bot: Bot
 ):
     """
@@ -36,7 +37,17 @@ async def handle_inline_query(
             response_text = schedule_service.format_schedule_message(schedule_dto)
 
             current_schedule_date = date.fromisoformat(schedule_dto.date)
-            keyboard = create_schedule_navigation_keyboard(current_schedule_date, original_user_id=user_id)
+            
+            semester = await semester_service.get_current_semester()
+            semester_start = date.fromisoformat(semester.start_date.split('T')[0]) if semester else None
+            semester_end = date.fromisoformat(semester.end_date.split('T')[0]) if semester else None
+
+            keyboard = create_schedule_navigation_keyboard(
+                current_schedule_date, 
+                original_user_id=user_id,
+                semester_start=semester_start,
+                semester_end=semester_end
+            )
 
             schedule_result = InlineQueryResultArticle(
                 id=str(uuid4()),
