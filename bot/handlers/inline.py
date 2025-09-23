@@ -32,10 +32,11 @@ async def handle_inline_query(
 
     if user:
         try:
-            today = date.today()
-            schedule_dto = await schedule_service.get_schedule_for_day(user_id, today)
+            schedule_dto = await schedule_service.get_schedule_for_day(user_id)
             response_text = schedule_service.format_schedule_message(schedule_dto)
-            keyboard = create_schedule_navigation_keyboard(today, original_user_id=user_id)
+
+            current_schedule_date = date.fromisoformat(schedule_dto.date)
+            keyboard = create_schedule_navigation_keyboard(current_schedule_date, original_user_id=user_id)
 
             schedule_result = InlineQueryResultArticle(
                 id=str(uuid4()),

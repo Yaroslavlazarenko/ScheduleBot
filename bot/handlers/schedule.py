@@ -23,12 +23,13 @@ async def handle_get_schedule(message: Message, schedule_service: ScheduleServic
         return
     
     telegram_id = message.from_user.id
-    target_date = date.today()
-
+    
     try:
-        schedule_dto = await schedule_service.get_schedule_for_day(telegram_id, target_date)
+        schedule_dto = await schedule_service.get_schedule_for_day(telegram_id)
         response_text = schedule_service.format_schedule_message(schedule_dto)
-        keyboard = create_schedule_navigation_keyboard(target_date, original_user_id=telegram_id)
+        
+        current_schedule_date = date.fromisoformat(schedule_dto.date)
+        keyboard = create_schedule_navigation_keyboard(current_schedule_date, original_user_id=telegram_id)
         
         await message.answer(
             response_text, 
@@ -38,7 +39,7 @@ async def handle_get_schedule(message: Message, schedule_service: ScheduleServic
     except (ValueError, ResourceNotFoundError) as e:
         await message.answer(f"❌ Помилка: {e}\nСпробуйте почати з /start.")
     except Exception:
-        logger.exception("Failed to send schedule for date %s", target_date)
+        logger.exception("Failed to send schedule for user %d", telegram_id)
         await message.answer("Сталася непередбачена помилка при отриманні розкладу.")
     finally:
         try:
@@ -83,7 +84,6 @@ async def handle_show_schedule(
         await query.answer("Ця дія доступна лише для інлайн-розкладу.", show_alert=True)
         return
         
-    target_date = date.today()
     telegram_id = callback_data.original_user_id
     
     await edit_inline_schedule_for_date(
@@ -91,7 +91,7 @@ async def handle_show_schedule(
         query.inline_message_id,
         schedule_service,
         telegram_id,
-        target_date
+        None
     )
     await query.answer()
 
@@ -166,13 +166,16 @@ async def edit_inline_schedule_for_date(
     inline_message_id: str,
     schedule_service: ScheduleService,
     telegram_id: int,
-    target_date: date
+    target_date: date | None
 ):
     """Редагує існуюче інлайн-повідомлення з розкладом."""
     try:
         schedule_dto = await schedule_service.get_schedule_for_day(telegram_id, target_date)
         response_text = schedule_service.format_schedule_message(schedule_dto)
-        keyboard = create_schedule_navigation_keyboard(target_date, original_user_id=telegram_id)
+
+        # --- Змінено тут: беремо дату з DTO для кнопок навігації ---
+        current_schedule_date = date.fromisoformat(schedule_dto.date)
+        keyboard = create_schedule_navigation_keyboard(current_schedule_date, original_user_id=telegram_id)
         
         await bot.edit_message_text(
             text=response_text,

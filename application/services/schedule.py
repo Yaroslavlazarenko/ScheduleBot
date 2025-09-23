@@ -36,8 +36,11 @@ class ScheduleService:
         self._user_service = user_service
         self._region_service = region_service
 
-    async def get_schedule_for_day(self, telegram_id: int, schedule_date: date) -> DailyScheduleDTO:
-        """Отримує розклад для користувача на заданий день, використовуючи новий ендпоінт."""
+    async def get_schedule_for_day(self, telegram_id: int, schedule_date: date | None = None) -> DailyScheduleDTO:
+        """
+        Отримує розклад для користувача.
+        Якщо schedule_date не вказано, API самостійно визначить поточний день для користувача.
+        """
         user = await self._user_service.get_user_by_telegram_id(telegram_id)
         if not user:
             raise ValueError("Користувача не знайдено. Будь ласка, зареєструйтесь: /start")
@@ -51,8 +54,8 @@ class ScheduleService:
         time_zone_id = await self._region_service.get_timezone_by_id(user.region_id)
         if not time_zone_id:
             raise ValueError(f"Не вдалося знайти часовий пояс для регіону з ID={user.region_id}.")
-                
-        date_str = schedule_date.isoformat()
+        
+        date_str = schedule_date.isoformat() if schedule_date else None
         
         schedule_data = await self._schedule_gateway.get_daily_schedule_for_group(
             group_id=user.group_id,
