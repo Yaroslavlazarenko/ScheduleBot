@@ -59,11 +59,16 @@ class SubjectService:
             if variant.infos:
                 info_parts = []
                 for info in variant.infos:
+                    main_line = ""
                     if info.value and info.value.strip().lower().startswith("http"):
-                        link = f"▫️ <a href='{info.value.strip()}'><b>{info.info_type_name}</b></a>"
-                        info_parts.append(link)
+                        main_line = f"▫️ <a href='{info.value.strip()}'><b>{info.info_type_name}</b></a>"
                     else:
-                        info_parts.append(f"▫️ <b>{info.info_type_name}:</b> {info.value}")
+                        main_line = f"▫️ <b>{info.info_type_name}:</b> {info.value}"
+                    info_parts.append(main_line)
+
+                    if info.description:
+                        info_parts.append(f"    └ <i>{info.description}</i>")
+                    # --- Кінець змін ---
                 parts.append("\n".join(info_parts))
             
             if not variant.teachers:

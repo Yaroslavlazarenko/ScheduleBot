@@ -78,6 +78,7 @@ class ApiSubjectInfoDTO(BaseModel):
     info_type_id: int = Field(alias='infoTypeId')
     info_type_name: str = Field(alias='infoTypeName')
     value: str
+    description: str | None = Field(None, alias='description')
 
 class ApiSubjectVariantDTO(BaseModel):
     id: int
