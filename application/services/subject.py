@@ -59,7 +59,11 @@ class SubjectService:
             if variant.infos:
                 info_parts = []
                 for info in variant.infos:
-                    info_parts.append(f"▫️ <b>{info.info_type_name}:</b> {info.value}")
+                    if info.value and info.value.strip().lower().startswith("http"):
+                        link = f"▫️ <a href='{info.value.strip()}'><b>{info.info_type_name}</b></a>"
+                        info_parts.append(link)
+                    else:
+                        info_parts.append(f"▫️ <b>{info.info_type_name}:</b> {info.value}")
                 parts.append("\n".join(info_parts))
             
             if not variant.teachers:
@@ -69,12 +73,15 @@ class SubjectService:
                 for teacher in variant.teachers:
                     teacher_lines.append(f"• {teacher.full_name}")
                     
-                    # Використовуємо метод з TeacherService, ігноруючи URL фото
-                    _, other_infos = self._teacher_service.extract_photo_and_infos(teacher) # <--- ОСЬ ТУТ ЗМІНА
+                    _, other_infos = self._teacher_service.extract_photo_and_infos(teacher)
                     
                     if other_infos:
                         for info in other_infos:
-                            teacher_lines.append(f"    └ <b>{info.info_type_name}:</b> {info.value}")
+                            if info.value and info.value.strip().lower().startswith("http"):
+                                link = f"    └ <a href='{info.value.strip()}'><b>{info.info_type_name}</b></a>"
+                                teacher_lines.append(link)
+                            else:
+                                teacher_lines.append(f"    └ <b>{info.info_type_name}:</b> {info.value}")
                             
                 parts.append(f"<b>Викладачі:</b>\n" + "\n".join(teacher_lines))
             

@@ -68,6 +68,10 @@ class TeacherService:
             parts.append("<i>Додаткова інформація відсутня.</i>")
         else:
             for info in infos_to_display:
-                parts.append(f"<b>{info.info_type_name}:</b> {info.value}")
+                if info.value and info.value.strip().lower().startswith("http"):
+                    link = f"<a href='{info.value.strip()}'><b>{info.info_type_name}</b></a>"
+                    parts.append(link)
+                else:
+                    parts.append(f"<b>{info.info_type_name}:</b> {info.value}")
 
         return "\n".join(parts)
