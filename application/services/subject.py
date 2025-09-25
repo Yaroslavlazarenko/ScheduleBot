@@ -46,12 +46,34 @@ class SubjectService:
             return None
 
     def format_subject_details(self, subject: ApiGroupedSubjectDetailsDTO) -> str:
-        header = f"📚 <b>{subject.name} ({subject.abbreviation})</b>\n"
+        header = f"📚 <b>{subject.name} ({subject.abbreviation})</b>"
         parts = [header]
 
         if not subject.variants:
             parts.append("<i>Детальна інформація відсутня.</i>")
             return "\n".join(parts)
+
+        all_teachers = {teacher.id: teacher for variant in subject.variants for teacher in variant.teachers}
+
+        if all_teachers:
+            parts.append("\n<b>Викладачі курсу:</b>")
+            teacher_lines = []
+            for teacher in sorted(all_teachers.values(), key=lambda t: t.full_name):
+                teacher_lines.append(f"• {teacher.full_name}")
+                
+                _, other_infos = self._teacher_service.extract_photo_and_infos(teacher)
+                
+                if other_infos:
+                    for info in other_infos:
+                        if info.value and info.value.strip().lower().startswith("http"):
+                            link = f"    └ <a href='{info.value.strip()}'><b>{info.info_type_name}</b></a>"
+                            teacher_lines.append(link)
+                        else:
+                            teacher_lines.append(f"    └ <b>{info.info_type_name}:</b> {info.value}")
+            
+            parts.append("\n".join(teacher_lines))
+        
+        parts.append("\n────────────────────\n")
 
         for variant in subject.variants:
             parts.append(f"<b>━━━ {variant.subject_type.name} ━━━</b>")
@@ -68,27 +90,13 @@ class SubjectService:
 
                     if info.description:
                         info_parts.append(f"    └ <i>{info.description}</i>")
-                    # --- Кінець змін ---
                 parts.append("\n".join(info_parts))
             
             if not variant.teachers:
                 parts.append("👨‍🏫 <i>Викладачі не призначені.</i>")
             else:
-                teacher_lines = []
-                for teacher in variant.teachers:
-                    teacher_lines.append(f"• {teacher.full_name}")
-                    
-                    _, other_infos = self._teacher_service.extract_photo_and_infos(teacher)
-                    
-                    if other_infos:
-                        for info in other_infos:
-                            if info.value and info.value.strip().lower().startswith("http"):
-                                link = f"    └ <a href='{info.value.strip()}'><b>{info.info_type_name}</b></a>"
-                                teacher_lines.append(link)
-                            else:
-                                teacher_lines.append(f"    └ <b>{info.info_type_name}:</b> {info.value}")
-                            
-                parts.append(f"<b>Викладачі:</b>\n" + "\n".join(teacher_lines))
+                teacher_names = ", ".join(sorted([t.full_name for t in variant.teachers]))
+                parts.append(f"<i>Викладачі: {teacher_names}</i>")
             
             parts.append("")
 
