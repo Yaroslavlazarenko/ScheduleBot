@@ -22,4 +22,4 @@ class SubjectGateway:
         if group_id is not None:
             params['groupId'] = group_id
             
-        return await self._client.get(f'/api/Subject/grouped/{abbreviation}', params=params)
+        return await self._client.get(f'/api/Subject/{abbreviation}', params=params)
