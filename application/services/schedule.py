@@ -83,7 +83,7 @@ class ScheduleService:
             if schedule.override_info.description:
                 parts.append(f"<i>{schedule.override_info.description}</i>")
 
-        parts.append("━━━━━━━━━━━━━━━━━━")
+        parts.append("────────────────────")
 
         if not schedule.lessons:
             parts.append("🎉 Пар немає, можна відпочити!")

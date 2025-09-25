@@ -76,7 +76,7 @@ class SubjectService:
         parts.append("\n────────────────────\n")
 
         for variant in subject.variants:
-            parts.append(f"<b>━━━ {variant.subject_type.name} ━━━</b>")
+            parts.append(f"<b>─── {variant.subject_type.name} ───</b>")
             
             if variant.infos:
                 info_parts = []
