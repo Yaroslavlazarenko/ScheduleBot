@@ -5,6 +5,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, CallbackQuery, LinkPreviewOptions
 
 from application.services.subject import SubjectService
+from application.services.user import UserService 
 from bot.keyboards import create_subjects_keyboard, SubjectCallbackFactory, create_subject_details_keyboard
 
 logger = logging.getLogger(__name__)
@@ -33,18 +34,31 @@ async def handle_get_subjects_list(message: Message, subject_service: SubjectSer
 async def handle_subject_selection(
     query: CallbackQuery,
     callback_data: SubjectCallbackFactory,
-    subject_service: SubjectService
+    subject_service: SubjectService,
+    user_service: UserService
 ):
-    """Обробляє вибір предмету та показує детальну інформацію про нього."""
+    """
+    Обробляє вибір предмету та показує детальну інформацію про нього,
+    відфільтровану для групи поточного користувача.
+    """
     
     if callback_data.abbreviation is None or not isinstance(query.message, Message):
         await query.answer("Помилка: не вдалося обробити запит.", show_alert=True)
         return
-        
-    subject = await subject_service.get_grouped_subject_details(callback_data.abbreviation)
+    
+    user = await user_service.get_user_by_telegram_id(query.from_user.id)
+    if not user:
+        await query.message.edit_text("❌ Помилка: не вдалося знайти ваші дані. Спробуйте /start.")
+        await query.answer()
+        return
+
+    subject = await subject_service.get_grouped_subject_details(
+        abbreviation=callback_data.abbreviation,
+        group_id=user.group_id
+    )
 
     if not subject:
-        await query.message.edit_text("❌ Предмет не знайдено.")
+        await query.message.edit_text("❌ Предмет не знайдено, або для вашої групи немає інформації.")
         await query.answer()
         return
 

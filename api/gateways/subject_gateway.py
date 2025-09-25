@@ -9,6 +9,17 @@ class SubjectGateway:
         """Отримує всі згруповані предмети з API."""
         return await self._client.get('/api/Subject')
 
-    async def get_grouped_subject_details_by_abbreviation(self, abbreviation: str) -> Any:
-        """Отримує детальну інформацію про предмет за його абревіатурою."""
-        return await self._client.get(f'/api/Subject/{abbreviation}/info')
+    async def get_grouped_subject_details_by_abbreviation(
+        self, 
+        abbreviation: str,
+        group_id: int | None = None
+    ) -> Any:
+        """
+        Отримує детальну інформацію про предмет за його абревіатурою.
+        Якщо передано group_id, результат буде відфільтровано для цієї групи.
+        """
+        params = {}
+        if group_id is not None:
+            params['groupId'] = group_id
+            
+        return await self._client.get(f'/api/Subject/grouped/{abbreviation}', params=params)
