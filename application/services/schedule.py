@@ -99,7 +99,8 @@ class ScheduleService:
                     start_time = time.fromisoformat(lesson.pair_start_time).strftime('%-H:%M')
                     end_time = time.fromisoformat(lesson.pair_end_time).strftime('%-H:%M')
                     
-                    lesson_name = lesson.subject_name
+                    lesson_name = lesson.subject_name or lesson.subject_short_name or "Невідомий предмет"
+    
                     if lesson.lesson_url:
                         lesson_name = f"<a href='{lesson.lesson_url}'>{lesson_name}</a>"
 
