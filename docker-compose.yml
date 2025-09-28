@@ -29,6 +29,7 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
       Authentication__ApiKey: ${API_KEY}
+      AdminSettings__ApiKey: ${ADMIN_API_KEY}
       ASPNETCORE_URLS: "http://0.0.0.0:80"
     depends_on:
       db:
