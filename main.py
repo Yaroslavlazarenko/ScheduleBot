@@ -29,7 +29,7 @@ async def main():
     # --- Composition Root ---
     logging.info("Creating dependencies...")
 
-    api_client = ApiClient(base_url=settings.api_base_url, api_key=settings.api_key)
+    api_client = ApiClient(base_url=settings.api_base_url, api_key=settings.api_key, use_ssl=False)
 
     user_gateway = UserGateway(client=api_client)
     group_gateway = GroupGateway(client=api_client)
