@@ -157,9 +157,9 @@ class ScheduleService:
             )
             parts.append(f"\n{day_header}")
 
-            if daily_schedule.override_info:
+            if daily_schedule.override_info and daily_schedule.override_info.substituted_day_name:
                 parts.append(f"❗️ <b>Заміна:</b> {daily_schedule.override_info.substituted_day_name}")
-
+    
             if not daily_schedule.lessons:
                 parts.append("  🎉 <i>Пар немає</i>")
             else:

@@ -29,7 +29,7 @@ class LessonDTO(BaseModel):
     lesson_url: str | None = Field(None, alias='lessonUrl')
 
 class ScheduleOverrideInfoDTO(BaseModel):
-    substituted_day_name: str = Field(alias='substitutedDayName')
+    substituted_day_name: str | None = Field(alias='substitutedDayName')
     description: str | None = Field(None, alias='description')
 
 class DailyScheduleDTO(BaseModel):
