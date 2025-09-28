@@ -137,7 +137,7 @@ class ScheduleService:
         return "\n".join(parts)
     
     def format_weekly_schedule_message(self, schedule: WeeklyScheduleDTO) -> str:
-        """Форматує об'єкт тижневого розкладу у велике повідомлення."""
+        """Форматує об'єкт тижневого розкладу у велике повідомлення з вікнами та описом замін."""
         start_date = date.fromisoformat(schedule.week_start_date)
         end_date = date.fromisoformat(schedule.week_end_date)
         
@@ -157,25 +157,41 @@ class ScheduleService:
             )
             parts.append(f"\n{day_header}")
 
-            if daily_schedule.override_info and daily_schedule.override_info.substituted_day_name:
-                parts.append(f"❗️ <b>Заміна:</b> {daily_schedule.override_info.substituted_day_name}")
+            if daily_schedule.override_info:
+                if daily_schedule.override_info.substituted_day_name:
+                    parts.append(f"❗️ <b>Заміна:</b> {daily_schedule.override_info.substituted_day_name}")
+                if daily_schedule.override_info.description:
+                    parts.append(f"<i>{daily_schedule.override_info.description}</i>")
     
             if not daily_schedule.lessons:
                 parts.append("  🎉 <i>Пар немає</i>")
             else:
-                for lesson in daily_schedule.lessons:
-                    start_time = time.fromisoformat(lesson.pair_start_time).strftime('%-H:%M')
-                    end_time = time.fromisoformat(lesson.pair_end_time).strftime('%-H:%M')
-                    
-                    lesson_name = lesson.subject_name or lesson.subject_short_name or "Невідомий предмет"
-                    if lesson.lesson_url:
-                        lesson_name = f"<a href='{lesson.lesson_url}'>{lesson_name}</a>"
+                lessons_by_number = {lesson.pair_number: lesson for lesson in daily_schedule.lessons}
+                
+                if not lessons_by_number:
+                    parts.append("  🎉 <i>Пар немає</i>")
+                    continue
+                
+                max_pair_for_day = max(lessons_by_number.keys())
 
-                    lesson_line = (
-                        f"  {lesson.pair_number}. {lesson_name} "
-                        f"({lesson.subject_type_abbreviation}) "
-                        f"({start_time}-{end_time})"
-                    )
-                    parts.append(lesson_line)
+                for pair_num in range(1, max_pair_for_day + 1):
+                    lesson = lessons_by_number.get(pair_num)
+                    
+                    if lesson:
+                        start_time = time.fromisoformat(lesson.pair_start_time).strftime('%-H:%M')
+                        end_time = time.fromisoformat(lesson.pair_end_time).strftime('%-H:%M')
+                        
+                        lesson_name = lesson.subject_name or lesson.subject_short_name or "Невідомий предмет"
+                        if lesson.lesson_url:
+                            lesson_name = f"<a href='{lesson.lesson_url}'>{lesson_name}</a>"
+
+                        lesson_line = (
+                            f"  {lesson.pair_number}. {lesson_name} "
+                            f"({lesson.subject_type_abbreviation}) "
+                            f"({start_time}-{end_time})"
+                        )
+                        parts.append(lesson_line)
+                    else:
+                        parts.append(f"  {pair_num}. 😴 Вікно")
         
         return "\n".join(parts)
