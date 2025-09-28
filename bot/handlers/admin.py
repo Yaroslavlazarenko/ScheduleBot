@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from aiogram import F, Router, types, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
+from aiogram.filters import BaseFilter
 from aiogram.exceptions import TelegramBadRequest
 
 from application.services import UserService, BroadcastService
@@ -15,7 +16,7 @@ from bot.keyboards import BroadcastCallbackFactory
 logger = logging.getLogger(__name__)
 admin_router = Router(name="admin_router")
 
-class AdminFilter:
+class AdminFilter(BaseFilter):
     async def __call__(self, event: types.Message | types.CallbackQuery, user_service: UserService) -> bool:
         if not event.from_user:
             return False
@@ -132,6 +133,10 @@ async def show_confirmation_preview(bot: Bot, chat_id: int, state: FSMContext):
 
 @admin_router.message(BroadcastFSM.getting_message)
 async def handle_get_broadcast_message(message: Message, state: FSMContext, bot: Bot):
+    if not message.text:
+        await message.reply("Будь ласка, надішліть текст для розсилки.")
+        return
+    
     await state.update_data(message_text=message.html_text)
     await state.set_state(BroadcastFSM.confirming_broadcast)
     await show_confirmation_preview(bot, message.chat.id, state)
