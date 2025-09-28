@@ -13,7 +13,8 @@ from .dto import (
     ApiGroupedSubjectDetailsDTO,
     ApiSubjectVariantDTO,
     ApiSubjectInfoDTO,
-    ApiSubjectTypeDTO
+    ApiSubjectTypeDTO,
+    WeeklyScheduleDTO
 )
 from .exceptions import (
     ApiClientError,
@@ -40,4 +41,5 @@ __all__ = [
     'ApiSubjectVariantDTO',
     'ApiSubjectInfoDTO',
     'ApiSubjectTypeDTO',
+    'WeeklyScheduleDTO'
 ]

@@ -97,3 +97,12 @@ class ApiSemesterDTO(BaseModel):
     id: int
     start_date: str = Field(alias='startDate')
     end_date: str = Field(alias='endDate')
+
+class WeeklyScheduleDTO(BaseModel):
+    group_name: str = Field(alias='groupName')
+    week_start_date: str = Field(alias='weekStartDate')
+    week_end_date: str = Field(alias='weekEndDate')
+    week_number: int = Field(alias='weekNumber')
+    is_even_week: bool = Field(alias='isEvenWeek')
+    time_zone_id: str = Field(alias='timeZoneId')
+    daily_schedules: list[DailyScheduleDTO] = Field(alias='dailySchedules')

@@ -7,8 +7,8 @@ from aiogram.types import (InlineQuery, InlineQueryResultArticle,
                            InputTextMessageContent, LinkPreviewOptions, InlineKeyboardMarkup, InlineKeyboardButton)
 
 from api.exceptions import ResourceNotFoundError
-from application.services import ScheduleService, UserService, SemesterService # <--- Додано
-from bot.keyboards import create_schedule_navigation_keyboard
+from application.services import ScheduleService, UserService, SemesterService
+from bot.keyboards import create_schedule_navigation_keyboard, create_weekly_schedule_navigation_keyboard
 
 logger = logging.getLogger(__name__)
 inline_router = Router(name="inline_router")
@@ -23,9 +23,9 @@ async def handle_inline_query(
     bot: Bot
 ):
     """
-    Обрабатывает инлайн-запросы.
-    - Для зарегистрированных пользователей предлагает отправить расписание.
-    - Для незарегистрированных — предлагает перейти в бот для регистрации.
+    Обробляє інлайн-запити.
+    - Для зареєстрованих користувачів пропонує надіслати розклад на день та на тиждень.
+    - Для незареєстрованих — пропонує перейти в бот для реєстрації.
     """
     results = []
     user_id = query.from_user.id
@@ -35,7 +35,6 @@ async def handle_inline_query(
         try:
             schedule_dto = await schedule_service.get_schedule_for_day(user_id)
             response_text = schedule_service.format_schedule_message(schedule_dto)
-
             current_schedule_date = date.fromisoformat(schedule_dto.date)
             
             semester = await semester_service.get_current_semester()
@@ -65,13 +64,44 @@ async def handle_inline_query(
         except (ValueError, ResourceNotFoundError) as e:
             error_result = InlineQueryResultArticle(
                 id=str(uuid4()),
-                title="❌ Помилка отримання розкладу",
+                title="❌ Помилка отримання розкладу на день",
                 description=str(e),
                 input_message_content=InputTextMessageContent(message_text=f"❌ Помилка: {e}")
             )
             results.append(error_result)
         except Exception:
-            logger.exception("Failed to create inline schedule for user %d", user_id)
+            logger.exception("Failed to create inline daily schedule for user %d", user_id)
+
+        try:
+            weekly_schedule_dto = await schedule_service.get_schedule_for_week(user_id)
+            response_text = schedule_service.format_weekly_schedule_message(weekly_schedule_dto)
+            current_schedule_date = date.fromisoformat(weekly_schedule_dto.week_start_date)
+            
+            semester = await semester_service.get_current_semester()
+            semester_start = date.fromisoformat(semester.start_date.split('T')[0]) if semester else None
+            semester_end = date.fromisoformat(semester.end_date.split('T')[0]) if semester else None
+
+            keyboard = create_weekly_schedule_navigation_keyboard(
+                current_schedule_date, 
+                original_user_id=user_id,
+                semester_start=semester_start,
+                semester_end=semester_end
+            )
+
+            weekly_schedule_result = InlineQueryResultArticle(
+                id=str(uuid4()),
+                title="🗓 Мій розклад на тиждень",
+                description="Натисніть, щоб надіслати розклад на весь тиждень.",
+                input_message_content=InputTextMessageContent(
+                    message_text=response_text,
+                    parse_mode="HTML",
+                    link_preview_options=LinkPreviewOptions(is_disabled=True)
+                ),
+                reply_markup=keyboard
+            )
+            results.append(weekly_schedule_result)
+        except Exception:
+            logger.exception("Failed to create inline weekly schedule for user %d", user_id)
 
     else:
         bot_user = await bot.get_me()

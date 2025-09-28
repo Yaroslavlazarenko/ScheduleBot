@@ -1,5 +1,5 @@
 from datetime import date, time
-from api import DailyScheduleDTO
+from api import DailyScheduleDTO, WeeklyScheduleDTO
 
 from api.gateways import ScheduleGateway
 
@@ -64,6 +64,26 @@ class ScheduleService:
         )
         
         return DailyScheduleDTO.model_validate(schedule_data)
+    
+    async def get_schedule_for_week(self, telegram_id: int, schedule_date: date | None = None) -> WeeklyScheduleDTO:
+        """Отримує розклад на тиждень для користувача."""
+        user = await self._user_service.get_user_by_telegram_id(telegram_id)
+        if not user:
+            raise ValueError("Користувача не знайдено. Будь ласка, зареєструйтесь: /start")
+        
+        time_zone_id = await self._region_service.get_timezone_by_id(user.region_id)
+        if not time_zone_id:
+            raise ValueError(f"Не вдалося знайти часовий пояс для регіону з ID={user.region_id}.")
+
+        date_str = schedule_date.isoformat() if schedule_date else None
+        
+        schedule_data = await self._schedule_gateway.get_weekly_schedule_for_group(
+            group_id=user.group_id,
+            time_zone_id=time_zone_id,
+            date=date_str
+        )
+        
+        return WeeklyScheduleDTO.model_validate(schedule_data)
 
     def format_schedule_message(self, schedule: DailyScheduleDTO) -> str:
         """Форматує об'єкт розкладу у повідомлення для користувача з урахуванням "вікон"."""
@@ -114,4 +134,48 @@ class ScheduleService:
                 else:
                     parts.append(f"{pair_num}. 😴 Вікно")
 
+        return "\n".join(parts)
+    
+    def format_weekly_schedule_message(self, schedule: WeeklyScheduleDTO) -> str:
+        """Форматує об'єкт тижневого розкладу у велике повідомлення."""
+        start_date = date.fromisoformat(schedule.week_start_date)
+        end_date = date.fromisoformat(schedule.week_end_date)
+        
+        seasonal_emoji = get_seasonal_emoji(start_date)
+        week_type = "парний" if schedule.is_even_week else "непарний"
+        
+        header1 = f"{seasonal_emoji} Розклад на тиждень ({start_date:%d.%m} - {end_date:%d.%m})"
+        header2 = f"{schedule.group_name} Тиждень {schedule.week_number} ({week_type})"
+        
+        parts = [header1, header2, "═" * 20]
+        
+        for daily_schedule in schedule.daily_schedules:
+            daily_date = date.fromisoformat(daily_schedule.date)
+            day_header = (
+                f"<b><u>{daily_schedule.day_of_week_name.capitalize()}, "
+                f"{daily_date.day} {MONTHS_UA.get(daily_date.month, '')}</u></b>"
+            )
+            parts.append(f"\n{day_header}")
+
+            if daily_schedule.override_info:
+                parts.append(f"❗️ <b>Заміна:</b> {daily_schedule.override_info.substituted_day_name}")
+
+            if not daily_schedule.lessons:
+                parts.append("  🎉 <i>Пар немає</i>")
+            else:
+                for lesson in daily_schedule.lessons:
+                    start_time = time.fromisoformat(lesson.pair_start_time).strftime('%-H:%M')
+                    end_time = time.fromisoformat(lesson.pair_end_time).strftime('%-H:%M')
+                    
+                    lesson_name = lesson.subject_name or lesson.subject_short_name or "Невідомий предмет"
+                    if lesson.lesson_url:
+                        lesson_name = f"<a href='{lesson.lesson_url}'>{lesson_name}</a>"
+
+                    lesson_line = (
+                        f"  {lesson.pair_number}. {lesson_name} "
+                        f"({lesson.subject_type_abbreviation}) "
+                        f"({start_time}-{end_time})"
+                    )
+                    parts.append(lesson_line)
+        
         return "\n".join(parts)

@@ -1,5 +1,6 @@
 from typing import List
 from datetime import date
+from datetime import timedelta
 
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, 
@@ -35,11 +36,14 @@ def create_main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [
-                KeyboardButton(text="🗓 Отримати розклад"), 
-                KeyboardButton(text="👨‍🏫 Вчителі")
+                KeyboardButton(text="🗓 Отримати розклад"),
+                KeyboardButton(text="🗓 Розклад на тиждень")
             ],
             [
-                KeyboardButton(text="📚 Предмети"),
+                KeyboardButton(text="👨‍🏫 Вчителі"), 
+                KeyboardButton(text="📚 Предмети")
+            ],
+            [
                 KeyboardButton(text="⚙️ Налаштування")
             ]
         ],
@@ -101,6 +105,61 @@ def create_schedule_navigation_keyboard(
                 text="➡️",
                 callback_data=ScheduleCallbackFactory(
                     action="next", 
+                    current_date=date_str, 
+                    original_user_id=original_user_id
+                ).pack()
+            )
+        )
+    
+    close_button = InlineKeyboardButton(
+        text="Закрити ❌",
+        callback_data=ScheduleCallbackFactory(
+            action="close",
+            current_date=date_str,
+            original_user_id=original_user_id
+        ).pack()
+    )
+    
+    keyboard = []
+    if navigation_buttons:
+        keyboard.append(navigation_buttons)
+    keyboard.append([close_button])
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def create_weekly_schedule_navigation_keyboard(
+    current_date: date, 
+    original_user_id: int,
+    semester_start: date | None = None,
+    semester_end: date | None = None
+) -> InlineKeyboardMarkup:
+    """Створює інлайн-клавіатуру для навігації по тижнях розкладу."""
+    date_str = current_date.isoformat()
+    
+    navigation_buttons = []
+    
+    # Кнопка "назад", если текущая неделя не первая в семестре
+    prev_week_date = current_date - timedelta(days=7)
+    if semester_start is None or prev_week_date >= semester_start:
+        navigation_buttons.append(
+            InlineKeyboardButton(
+                text="⬅️ Попер. тиждень",
+                callback_data=ScheduleCallbackFactory(
+                    action="prev_week", 
+                    current_date=date_str, 
+                    original_user_id=original_user_id
+                ).pack()
+            )
+        )
+
+    # Кнопка "вперед", если текущая неделя не последняя в семестре
+    next_week_date = current_date + timedelta(days=7)
+    if semester_end is None or next_week_date <= semester_end:
+        navigation_buttons.append(
+            InlineKeyboardButton(
+                text="Наст. тиждень ➡️",
+                callback_data=ScheduleCallbackFactory(
+                    action="next_week", 
                     current_date=date_str, 
                     original_user_id=original_user_id
                 ).pack()

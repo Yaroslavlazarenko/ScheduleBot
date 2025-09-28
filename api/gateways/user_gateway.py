@@ -29,3 +29,10 @@ class UserGateway:
         """Змінює регіон для користувача."""
         data = {'newRegionId': new_region_id}
         return await self._client.put(f'/api/User/{user_id}/region', data=data)
+    
+    async def get_weekly_schedule_for_user(self, user_id: int, date: str | None = None) -> Any:
+        """Отримує розклад на тиждень для користувача."""
+        params = {}
+        if date:
+            params['date'] = date
+        return await self._client.get(f'/api/User/{user_id}/schedule/week', params=params)

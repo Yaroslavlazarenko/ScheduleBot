@@ -8,5 +8,6 @@ class Settings(BaseSettings):
     telegram_bot_token: str
     api_base_url: str
     api_key: str
+    admin_api_key: str
 
 settings = Settings() # type: ignore
