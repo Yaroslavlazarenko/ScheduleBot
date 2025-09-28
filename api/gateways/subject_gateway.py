@@ -16,4 +16,4 @@ class SubjectGateway:
     ) -> Any:
         params = {'groupId': group_id} if group_id else None
             
-        return await self._client.get(f'/api/subjects/by-name-id/{subject_name_id}/info', params=params)
+        return await self._client.get(f'/api/Subject/by-name-id/{subject_name_id}/info', params=params)
