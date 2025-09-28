@@ -19,3 +19,13 @@ class BroadcastGateway:
         headers = {'X-Admin-Api-Key': admin_api_key}
         
         return await self._client.post('/api/broadcast', data=data, extra_headers=headers)
+    
+    async def get_pending_broadcast(self, admin_api_key: str) -> Any:
+        """Отримує одне активне завдання на розсилку, яке ще не було надіслано."""
+        headers = {'X-Admin-Api-Key': admin_api_key}
+        return await self._client.get('/api/notification/pending-broadcast', extra_headers=headers)
+    
+    async def mark_broadcast_as_sent(self, broadcast_id: int, admin_api_key: str) -> None:
+        """Позначає завдання на розсилку як виконане."""
+        headers = {'X-Admin-Api-Key': admin_api_key}
+        await self._client.post(f'/api/notification/broadcast/{broadcast_id}/sent', data={}, extra_headers=headers)

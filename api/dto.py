@@ -106,3 +106,11 @@ class WeeklyScheduleDTO(BaseModel):
     is_even_week: bool = Field(alias='isEvenWeek')
     time_zone_id: str = Field(alias='timeZoneId')
     daily_schedules: list[DailyScheduleDTO] = Field(alias='dailySchedules')
+
+class UserBroadcastTargetDTO(BaseModel):
+    telegram_id: int = Field(alias='telegramId')
+
+class PendingBroadcastDTO(BaseModel):
+    id: int
+    message_text: str = Field(alias='messageText')
+    users: list[UserBroadcastTargetDTO]

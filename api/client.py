@@ -47,11 +47,11 @@ class ApiClient:
         except aiohttp.ClientError as err:
             raise ApiClientError(status_code=500, message=str(err)) from err
 
-    async def get(self, endpoint: str, params: dict | None = None) -> Any:
-        return await self._request('GET', endpoint, params=params)
+    async def get(self, endpoint: str, params: dict | None = None, extra_headers: dict | None = None) -> Any:
+        return await self._request('GET', endpoint, params=params, extra_headers=extra_headers)
 
     async def post(self, endpoint: str, data: dict, extra_headers: dict | None = None) -> Any:
         return await self._request('POST', endpoint, data=data, extra_headers=extra_headers)
 
-    async def put(self, endpoint: str, data: dict) -> Any:
-        return await self._request('PUT', endpoint, data=data)
+    async def put(self, endpoint: str, data: dict, extra_headers: dict | None = None) -> Any:
+        return await self._request('PUT', endpoint, data=data, extra_headers=extra_headers)

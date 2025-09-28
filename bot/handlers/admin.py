@@ -156,36 +156,49 @@ async def handle_broadcast_confirmation(
 
     try:
         await query.message.delete()
-        if query.message.reply_to_message:
-            await bot.delete_message(query.message.chat.id, query.message.reply_to_message.message_id)
+        preview_text_message_id = query.message.message_id - 1
+        await bot.delete_message(query.message.chat.id, preview_text_message_id)
     except TelegramBadRequest:
         logger.warning("Could not delete preview messages.")
 
     if callback_data.action == "edit_text":
         await state.set_state(BroadcastFSM.getting_message)
         await query.message.answer("Введіть новий текст повідомлення:", reply_markup=create_cancel_fsm_keyboard())
+        await query.answer()
+        return
     
-    elif callback_data.action == "edit_time":
+    if callback_data.action == "edit_time":
         await state.set_state(BroadcastFSM.getting_schedule_time)
         await query.message.answer(
             "Введіть нову дату та час для відправки у форматі `РРРР-ММ-ДД ГГ:ХХ` (UTC):",
             reply_markup=create_cancel_fsm_keyboard(),
             parse_mode="Markdown"
         )
+        await query.answer()
+        return
 
-    elif callback_data.action == "send":
+    if callback_data.action == "send":
         data = await state.get_data()
         message_text = data.get("message_text")
-        schedule_time_obj: datetime | None = data.get("schedule_time")
-        
-        schedule_time_iso = schedule_time_obj.isoformat() if schedule_time_obj else None
+        is_scheduled = data.get("is_scheduled", False)
         
         if not message_text:
             await query.message.answer("❌ Помилка: текст повідомлення не знайдено. Спробуйте знову.")
-        else:
-            result_message = await broadcast_service.create_broadcast(message_text, schedule_time_iso)
-            await query.message.answer(result_message)
+            await state.clear()
+            await query.answer()
+            return
+
+        schedule_time_obj: datetime | None = data.get("schedule_time")
+        schedule_time_iso = schedule_time_obj.isoformat() if schedule_time_obj else None
         
+        creation_result = await broadcast_service.create_broadcast(message_text, schedule_time_iso)
+        await query.message.answer(creation_result)
+
+        if not is_scheduled:
+            await query.message.answer("🚀 Починаю розсилку...")
+            send_result = await broadcast_service.send_pending_broadcast(bot)
+            await query.message.answer(send_result)
+
         await state.clear()
         
     await query.answer()
