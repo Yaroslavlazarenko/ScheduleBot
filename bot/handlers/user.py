@@ -102,7 +102,7 @@ async def handle_region_selection(
         
         await query.message.answer(
             f"Чудово, {user.first_name}! Тепер ви можете користуватися ботом. Оберіть дію з меню нижче:",
-            reply_markup=create_main_keyboard()
+            reply_markup=create_main_keyboard(is_admin=False)
         )
 
     except ValueError as e:
@@ -113,7 +113,7 @@ async def handle_region_selection(
         await query.message.edit_text("⚠️ Ви вже були зареєстровані.")
         await query.message.answer(
             "Оберіть дію з меню:",
-            reply_markup=create_main_keyboard()
+            reply_markup=create_main_keyboard(is_admin=False)
         )
     except Exception:
         await query.message.edit_text("Сталася непередбачена помилка. Спробуйте пізніше.")

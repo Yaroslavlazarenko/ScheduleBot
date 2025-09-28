@@ -5,6 +5,7 @@ from .schedule_gateway import ScheduleGateway
 from .teacher_gateway import TeacherGateway
 from .subject_gateway import SubjectGateway
 from .semester_gateway import SemesterGateway
+from api.gateways.broadcast_gateway import BroadcastGateway
 
 __all__ = [
     'GroupGateway',
@@ -13,5 +14,6 @@ __all__ = [
     'ScheduleGateway',
     'TeacherGateway',
     'SubjectGateway',
-    'SemesterGateway'
+    'SemesterGateway',
+    'BroadcastGateway'
 ]

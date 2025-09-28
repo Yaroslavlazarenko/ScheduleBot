@@ -8,6 +8,9 @@ from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
 
 from api import ApiGroupDTO, ApiRegionDTO, ApiTeacherDTO, ApiGroupedSubjectDTO
 
+class BroadcastCallbackFactory(CallbackData, prefix="broadcast"):
+    action: str
+
 class GroupCallbackFactory(CallbackData, prefix="group"):
     id: int
     name: str
@@ -31,25 +34,67 @@ class SubjectCallbackFactory(CallbackData, prefix="subject"):
     action: str
     subject_name_id: int | None = None
 
-def create_main_keyboard() -> ReplyKeyboardMarkup:
+def create_main_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
     """Створює головну клавіатуру з основними діями."""
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(text="🗓 Отримати розклад"),
-                KeyboardButton(text="🗓 Розклад на тиждень")
-            ],
-            [
-                KeyboardButton(text="👨‍🏫 Вчителі"), 
-                KeyboardButton(text="📚 Предмети")
-            ],
-            [
-                KeyboardButton(text="⚙️ Налаштування")
-            ]
+    keyboard_layout = [
+        [
+            KeyboardButton(text="🗓 Отримати розклад"),
+            KeyboardButton(text="🗓 Розклад на тиждень")
         ],
+        [
+            KeyboardButton(text="👨‍🏫 Вчителі"), 
+            KeyboardButton(text="📚 Предмети")
+        ],
+        [
+            KeyboardButton(text="⚙️ Налаштування")
+        ]
+    ]
+    if is_admin:
+        keyboard_layout.append([KeyboardButton(text="👑 Адмін-панель")])
+
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard_layout,
         resize_keyboard=True,
         one_time_keyboard=False
     )
+
+def create_admin_panel_keyboard() -> InlineKeyboardMarkup:
+    """Створює інлайн-клавіатуру для адмін-панелі."""
+    buttons = [
+        [InlineKeyboardButton(text="✉️ Створити розсилку", callback_data="start_broadcast")],
+        [InlineKeyboardButton(text="Закрити ❌", callback_data="close_admin_panel")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def create_broadcast_type_keyboard() -> InlineKeyboardMarkup:
+    """Створює клавіатуру для вибору типу розсилки."""
+    buttons = [
+        [
+            InlineKeyboardButton(text="🚀 Відправити зараз", callback_data=BroadcastCallbackFactory(action="send_now").pack()),
+            InlineKeyboardButton(text="🕒 Запланувати", callback_data=BroadcastCallbackFactory(action="schedule").pack())
+        ],
+        [InlineKeyboardButton(text="❌ Скасувати", callback_data=BroadcastCallbackFactory(action="cancel").pack())]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def create_broadcast_confirmation_keyboard(is_scheduled: bool) -> InlineKeyboardMarkup:
+    """Створює клавіатуру для підтвердження розсилки."""
+    edit_buttons = [InlineKeyboardButton(text="✏️ Редагувати текст", callback_data=BroadcastCallbackFactory(action="edit_text").pack())]
+    if is_scheduled:
+        edit_buttons.append(InlineKeyboardButton(text="🕒 Редагувати час", callback_data=BroadcastCallbackFactory(action="edit_time").pack()))
+
+    buttons = [
+        [InlineKeyboardButton(text="✅ Підтвердити та створити", callback_data=BroadcastCallbackFactory(action="send").pack())],
+        edit_buttons,
+        [InlineKeyboardButton(text="❌ Скасувати", callback_data=BroadcastCallbackFactory(action="cancel").pack())]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def create_cancel_fsm_keyboard() -> InlineKeyboardMarkup:
+    """Створює клавіатуру з єдиною кнопкою "Скасувати"."""
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="❌ Скасувати", callback_data=BroadcastCallbackFactory(action="cancel").pack())
+    ]])
 
 def create_settings_keyboard() -> InlineKeyboardMarkup:
     """Створює інлайн-клавіатуру для меню налаштувань."""

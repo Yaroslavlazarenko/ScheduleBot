@@ -9,9 +9,11 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from api import ApiClient
 from api.gateways import (GroupGateway, RegionGateway, ScheduleGateway,
-                          UserGateway, TeacherGateway, SubjectGateway, SemesterGateway)
+                          UserGateway, TeacherGateway, SubjectGateway,
+                          SemesterGateway, BroadcastGateway)
 from application.services import (GroupService, RegionService, ScheduleService,
-                                  UserService, TeacherService, SubjectService, SemesterService)
+                                  UserService, TeacherService, SubjectService,
+                                  SemesterService, BroadcastService)
 from bot import handlers
 from bot.middlewares import DiMiddleware
 from config import settings
@@ -36,6 +38,7 @@ async def main():
     teacher_gateway = TeacherGateway(client=api_client)
     subject_gateway = SubjectGateway(client=api_client)
     semester_gateway = SemesterGateway(client=api_client)
+    broadcast_gateway = BroadcastGateway(client=api_client)
 
     group_service = GroupService(gateway=group_gateway)
     user_service = UserService(gateway=user_gateway)
@@ -43,6 +46,7 @@ async def main():
     teacher_service = TeacherService(gateway=teacher_gateway)
     semester_service = SemesterService(gateway=semester_gateway)
     subject_service = SubjectService(gateway=subject_gateway, teacher_service=teacher_service)
+    broadcast_service = BroadcastService(gateway=broadcast_gateway)
 
     schedule_service = ScheduleService(
         schedule_gateway=schedule_gateway,
@@ -67,7 +71,8 @@ async def main():
             schedule_service=schedule_service,
             teacher_service=teacher_service,
             subject_service=subject_service,
-            semester_service=semester_service
+            semester_service=semester_service,
+            broadcast_service=broadcast_service
         )
     )
 
@@ -80,6 +85,7 @@ async def main():
     dispatcher.include_router(handlers.teacher_router)
     dispatcher.include_router(handlers.settings_router)
     dispatcher.include_router(handlers.subject_router)
+    dispatcher.include_router(handlers.admin_router)
 
     # --- Bot Start ---
     await bot.delete_webhook(drop_pending_updates=True)

@@ -4,7 +4,8 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 
 from application.services import (GroupService, RegionService, UserService, 
-                                  ScheduleService, TeacherService, SubjectService, SemesterService)
+                                  ScheduleService, TeacherService, SubjectService, 
+                                  SemesterService, BroadcastService)
 
 class DiMiddleware(BaseMiddleware):
     def __init__(
@@ -16,6 +17,7 @@ class DiMiddleware(BaseMiddleware):
         teacher_service: TeacherService,
         subject_service: SubjectService,
         semester_service: SemesterService,
+        broadcast_service: BroadcastService,
     ):
         super().__init__()
         self.user_service = user_service
@@ -25,6 +27,7 @@ class DiMiddleware(BaseMiddleware):
         self.teacher_service = teacher_service
         self.subject_service = subject_service
         self.semester_service = semester_service
+        self.broadcast_service = broadcast_service
 
     async def __call__(
         self,
@@ -39,4 +42,5 @@ class DiMiddleware(BaseMiddleware):
         data['teacher_service'] = self.teacher_service
         data['subject_service'] = self.subject_service
         data['semester_service'] = self.semester_service
+        data['broadcast_service'] = self.broadcast_service
         return await handler(event, data)

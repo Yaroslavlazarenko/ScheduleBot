@@ -34,7 +34,8 @@ async def handle_start(
         if user:
             await message.answer(
                 f"👋 З поверненням, {message.from_user.first_name}!\n\nОберіть дію:",
-                reply_markup=create_main_keyboard()
+                # <--- Ключевое изменение
+                reply_markup=create_main_keyboard(is_admin=user.is_admin)
             )
         else:
             groups = await group_service.get_all_groups()

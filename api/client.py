@@ -5,13 +5,19 @@ from .exceptions import ApiClientError, ResourceNotFoundError, ApiBadRequestErro
 class ApiClient:
     def __init__(self, base_url: str, api_key: str, use_ssl: bool = True):
         self.base_url = base_url
-        self.headers = {'X-Api-Key': api_key, 'Content-Type': 'application/json'}
+        self.default_headers = {'X-Api-Key': api_key, 'Content-Type': 'application/json'}
         self.use_ssl = use_ssl
 
-    async def _request(self, method: str, endpoint: str, data: dict | None = None, params: dict | None = None) -> Any:
+    async def _request(self, method: str, endpoint: str, data: dict | None = None, 
+                       params: dict | None = None, extra_headers: dict | None = None) -> Any:
         url = self.base_url + endpoint
+
+        request_headers = self.default_headers.copy()
+        if extra_headers:
+            request_headers.update(extra_headers)
+
         try:
-            async with aiohttp.ClientSession(headers=self.headers) as session:
+            async with aiohttp.ClientSession(headers=request_headers) as session:
                 async with session.request(
                     method, url, json=data, ssl=self.use_ssl, params=params
                 ) as response:
@@ -31,8 +37,8 @@ class ApiClient:
     async def get(self, endpoint: str, params: dict | None = None) -> Any:
         return await self._request('GET', endpoint, params=params)
 
-    async def post(self, endpoint: str, data: dict) -> Any:
-        return await self._request('POST', endpoint, data=data)
+    async def post(self, endpoint: str, data: dict, extra_headers: dict | None = None) -> Any:
+        return await self._request('POST', endpoint, data=data, extra_headers=extra_headers)
 
     async def put(self, endpoint: str, data: dict) -> Any:
         return await self._request('PUT', endpoint, data=data)

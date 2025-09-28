@@ -7,3 +7,9 @@ class RegistrationFSM(StatesGroup):
 class SettingsFSM(StatesGroup):
     choosing_group = State()
     choosing_region = State()
+
+class BroadcastFSM(StatesGroup):
+    choosing_type = State()
+    getting_schedule_time = State()
+    getting_message = State()
+    confirming_broadcast = State()
