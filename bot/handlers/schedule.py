@@ -8,7 +8,7 @@ from aiogram.types import LinkPreviewOptions, Message, CallbackQuery
 
 from application.services import ScheduleService, SemesterService
 from bot.keyboards import (create_schedule_navigation_keyboard, ScheduleCallbackFactory, 
-                           create_show_schedule_keyboard, create_weekly_schedule_navigation_keyboard) 
+                           create_show_schedule_keyboard, create_weekly_schedule_navigation_keyboard, create_show_weekly_schedule_keyboard) 
 from api.exceptions import ResourceNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ async def handle_close_schedule(query: CallbackQuery, callback_data: ScheduleCal
     """
     Обробляє натискання кнопки "Закрити".
     - Для звичайних повідомлень - видаляє їх.
-    - Для інлайн-повідомлень - редагує, показуючи кнопку "Отримати розклад".
+    - Для інлайн-повідомлень - редагує, показуючи правильну кнопку "Отримати розклад".
     """
     if isinstance(query.message, Message):
         try:
@@ -116,9 +116,15 @@ async def handle_close_schedule(query: CallbackQuery, callback_data: ScheduleCal
             logger.warning("Could not delete schedule message: %s", e)
     elif query.inline_message_id:
         try:
-            keyboard = create_show_schedule_keyboard(callback_data.original_user_id)
+            if callback_data.schedule_type == "week":
+                keyboard = create_show_weekly_schedule_keyboard(callback_data.original_user_id)
+                text = "Розклад на тиждень згорнуто"
+            else:
+                keyboard = create_show_schedule_keyboard(callback_data.original_user_id)
+                text = "Розклад згорнуто"
+            
             await bot.edit_message_text(
-                text="Розклад згорнуто",
+                text=text,
                 inline_message_id=query.inline_message_id,
                 reply_markup=keyboard
             )
@@ -126,6 +132,7 @@ async def handle_close_schedule(query: CallbackQuery, callback_data: ScheduleCal
             logger.warning("Could not edit inline message on close: %s", e)
     
     await query.answer()
+
 
 @schedule_router.callback_query(ScheduleCallbackFactory.filter(F.action == "show"))
 async def handle_show_schedule(
@@ -146,16 +153,28 @@ async def handle_show_schedule(
     semester_start = date.fromisoformat(semester.start_date.split('T')[0]) if semester else None
     semester_end = date.fromisoformat(semester.end_date.split('T')[0]) if semester else None
     
-    await edit_inline_schedule_for_date(
-        bot,
-        query.inline_message_id,
-        schedule_service,
-        telegram_id,
-        None,
-        semester_start,
-        semester_end
-    )
+    if callback_data.schedule_type == "week":
+        await edit_inline_weekly_schedule_for_date(
+            bot=bot,
+            inline_message_id=query.inline_message_id,
+            schedule_service=schedule_service,
+            telegram_id=telegram_id,
+            target_date=date.today(),
+            semester_start=semester_start,
+            semester_end=semester_end
+        )
+    else:
+        await edit_inline_schedule_for_date(
+            bot=bot,
+            inline_message_id=query.inline_message_id,
+            schedule_service=schedule_service,
+            telegram_id=telegram_id,
+            target_date=None,
+            semester_start=semester_start,
+            semester_end=semester_end
+        )
     await query.answer()
+
 
 @schedule_router.callback_query(ScheduleCallbackFactory.filter(F.action.in_({"prev", "next", "prev_week", "next_week"})))
 async def handle_schedule_navigation(

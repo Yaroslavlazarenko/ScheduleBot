@@ -20,6 +20,7 @@ class RegionCallbackFactory(CallbackData, prefix="region"):
 
 class ScheduleCallbackFactory(CallbackData, prefix="schedule"):
     action: str
+    schedule_type: str
     current_date: str
     original_user_id: int 
 
@@ -127,7 +128,7 @@ def create_schedule_navigation_keyboard(
     semester_start: date | None = None,
     semester_end: date | None = None
 ) -> InlineKeyboardMarkup:
-    """Створює інлайн-клавіатуру для навігації по днях розкладу, приховуючи кнопки на межах семестру."""
+    """Створює інлайн-клавіатуру для навігації по днях розкладу."""
     date_str = current_date.isoformat()
     
     navigation_buttons = []
@@ -137,7 +138,7 @@ def create_schedule_navigation_keyboard(
             InlineKeyboardButton(
                 text="⬅️",
                 callback_data=ScheduleCallbackFactory(
-                    action="prev", 
+                    action="prev", schedule_type="day",
                     current_date=date_str, 
                     original_user_id=original_user_id
                 ).pack()
@@ -149,7 +150,7 @@ def create_schedule_navigation_keyboard(
             InlineKeyboardButton(
                 text="➡️",
                 callback_data=ScheduleCallbackFactory(
-                    action="next", 
+                    action="next", schedule_type="day",
                     current_date=date_str, 
                     original_user_id=original_user_id
                 ).pack()
@@ -159,7 +160,7 @@ def create_schedule_navigation_keyboard(
     close_button = InlineKeyboardButton(
         text="Закрити ❌",
         callback_data=ScheduleCallbackFactory(
-            action="close",
+            action="close", schedule_type="day",
             current_date=date_str,
             original_user_id=original_user_id
         ).pack()
@@ -183,28 +184,26 @@ def create_weekly_schedule_navigation_keyboard(
     
     navigation_buttons = []
     
-    # Кнопка "назад", если текущая неделя не первая в семестре
     prev_week_date = current_date - timedelta(days=7)
     if semester_start is None or prev_week_date >= semester_start:
         navigation_buttons.append(
             InlineKeyboardButton(
                 text="⬅️ Попер. тиждень",
                 callback_data=ScheduleCallbackFactory(
-                    action="prev_week", 
+                    action="prev_week", schedule_type="week",
                     current_date=date_str, 
                     original_user_id=original_user_id
                 ).pack()
             )
         )
 
-    # Кнопка "вперед", если текущая неделя не последняя в семестре
     next_week_date = current_date + timedelta(days=7)
     if semester_end is None or next_week_date <= semester_end:
         navigation_buttons.append(
             InlineKeyboardButton(
                 text="Наст. тиждень ➡️",
                 callback_data=ScheduleCallbackFactory(
-                    action="next_week", 
+                    action="next_week", schedule_type="week",
                     current_date=date_str, 
                     original_user_id=original_user_id
                 ).pack()
@@ -214,7 +213,7 @@ def create_weekly_schedule_navigation_keyboard(
     close_button = InlineKeyboardButton(
         text="Закрити ❌",
         callback_data=ScheduleCallbackFactory(
-            action="close",
+            action="close", schedule_type="week",
             current_date=date_str,
             original_user_id=original_user_id
         ).pack()
@@ -232,7 +231,19 @@ def create_show_schedule_keyboard(original_user_id: int) -> InlineKeyboardMarkup
     button = InlineKeyboardButton(
         text="🗓 Отримати розклад",
         callback_data=ScheduleCallbackFactory(
-            action="show", 
+            action="show", schedule_type="day",
+            current_date=date.today().isoformat(),
+            original_user_id=original_user_id
+        ).pack()
+    )
+    return InlineKeyboardMarkup(inline_keyboard=[[button]])
+
+def create_show_weekly_schedule_keyboard(original_user_id: int) -> InlineKeyboardMarkup:
+    """Створює клавіатуру з кнопкою для показу розкладу на тиждень."""
+    button = InlineKeyboardButton(
+        text="🗓 Отримати розклад на тиждень",
+        callback_data=ScheduleCallbackFactory(
+            action="show", schedule_type="week",
             current_date=date.today().isoformat(),
             original_user_id=original_user_id
         ).pack()
