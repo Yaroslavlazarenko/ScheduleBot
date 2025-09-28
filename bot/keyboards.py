@@ -28,7 +28,7 @@ class SettingsCallbackFactory(CallbackData, prefix="settings"):
 
 class SubjectCallbackFactory(CallbackData, prefix="subject"):
     action: str
-    abbreviation: str | None = None
+    subject_name_id: int | None = None
 
 def create_main_keyboard() -> ReplyKeyboardMarkup:
     """Створює головну клавіатуру з основними діями."""
@@ -246,7 +246,7 @@ def create_subjects_keyboard(subjects: List[ApiGroupedSubjectDTO], columns: int 
     for subject in sorted(subjects, key=lambda s: s.name):
         btn = InlineKeyboardButton(
             text=subject.abbreviation,
-            callback_data=SubjectCallbackFactory(action="select", abbreviation=subject.abbreviation).pack()
+            callback_data=SubjectCallbackFactory(action="select", subject_name_id=subject.subject_name_id).pack()
         )
         row.append(btn)
         

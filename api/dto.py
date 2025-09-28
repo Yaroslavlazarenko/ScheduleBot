@@ -66,6 +66,7 @@ class ApiCreateUserDTO(BaseModel):
         populate_by_name = True
 
 class ApiGroupedSubjectDTO(BaseModel):
+    subject_name_id: int = Field(alias='subjectNameId')
     name: str
     abbreviation: str
 

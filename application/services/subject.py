@@ -11,7 +11,7 @@ class SubjectService:
         self._gateway = gateway
         self._teacher_service = teacher_service
         self._subjects_list_cache: Tuple[List[ApiGroupedSubjectDTO], float] | None = None
-        self._subject_details_cache: Dict[Tuple[str, int | None], Tuple[ApiGroupedSubjectDetailsDTO, float]] = {}
+        self._subject_details_cache: Dict[Tuple[int, int | None], Tuple[ApiGroupedSubjectDetailsDTO, float]] = {}
 
     async def get_all_subjects(self) -> List[ApiGroupedSubjectDTO]:
         """Отримує список предметів, використовуючи кеш з TTL."""
@@ -31,20 +31,19 @@ class SubjectService:
 
     async def get_grouped_subject_details(
         self, 
-        abbreviation: str, 
+        subject_name_id: int, 
         group_id: int | None = None
     ) -> ApiGroupedSubjectDetailsDTO | None:
-        """Отримує деталі про предмет, використовуючи кеш з TTL, з урахуванням групи."""
+        """Отримує деталі про предмет за ID його назви, використовуючи кеш."""
         
-        cache_key = (abbreviation, group_id)
-
+        cache_key = (subject_name_id, group_id)
         if cache_key in self._subject_details_cache:
             data, timestamp = self._subject_details_cache[cache_key]
             if time.time() - timestamp < CACHE_TTL_SECONDS:
                 return data
 
         try:
-            response_data = await self._gateway.get_grouped_subject_details_by_abbreviation(abbreviation, group_id)
+            response_data = await self._gateway.get_grouped_subject_details_by_id(subject_name_id, group_id)
             details = ApiGroupedSubjectDetailsDTO.model_validate(response_data)
             
             self._subject_details_cache[cache_key] = (details, time.time())

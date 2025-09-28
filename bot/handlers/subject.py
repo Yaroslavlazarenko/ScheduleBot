@@ -42,7 +42,7 @@ async def handle_subject_selection(
     відфільтровану для групи поточного користувача.
     """
     
-    if callback_data.abbreviation is None or not isinstance(query.message, Message):
+    if callback_data.subject_name_id is None or not isinstance(query.message, Message):
         await query.answer("Помилка: не вдалося обробити запит.", show_alert=True)
         return
     
@@ -53,7 +53,7 @@ async def handle_subject_selection(
         return
 
     subject = await subject_service.get_grouped_subject_details(
-        abbreviation=callback_data.abbreviation,
+        subject_name_id=callback_data.subject_name_id,
         group_id=user.group_id
     )
 
