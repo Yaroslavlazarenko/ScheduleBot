@@ -1,6 +1,6 @@
 import time
 from typing import List, Dict, Tuple
-from api import ApiGroupedSubjectDTO, ApiGroupedSubjectDetailsDTO, ResourceNotFoundError
+from api import ApiSubjectNameDTO, ApiGroupedSubjectDetailsDTO, ResourceNotFoundError
 from api.gateways.subject_gateway import SubjectGateway
 from .teacher import TeacherService
 
@@ -10,10 +10,10 @@ class SubjectService:
     def __init__(self, gateway: SubjectGateway, teacher_service: TeacherService):
         self._gateway = gateway
         self._teacher_service = teacher_service
-        self._subjects_list_cache: Tuple[List[ApiGroupedSubjectDTO], float] | None = None
+        self._subjects_list_cache: Tuple[List[ApiSubjectNameDTO], float] | None = None
         self._subject_details_cache: Dict[Tuple[int, int | None], Tuple[ApiGroupedSubjectDetailsDTO, float]] = {}
 
-    async def get_all_subjects(self) -> List[ApiGroupedSubjectDTO]:
+    async def get_all_subjects(self) -> List[ApiSubjectNameDTO]:
         """Отримує список предметів, використовуючи кеш з TTL."""
         if self._subjects_list_cache is not None:
             data, timestamp = self._subjects_list_cache
@@ -24,7 +24,7 @@ class SubjectService:
         if not response_data:
             return []
         
-        subjects = [ApiGroupedSubjectDTO.model_validate(subject) for subject in response_data]
+        subjects = [ApiSubjectNameDTO.model_validate(subject) for subject in response_data]
         
         self._subjects_list_cache = (subjects, time.time())
         return subjects

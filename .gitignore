@@ -5,3 +5,4 @@ __pycache__/
 
 myenv/
 .env
+.docker-compose.env

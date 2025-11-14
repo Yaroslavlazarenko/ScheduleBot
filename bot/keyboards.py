@@ -6,7 +6,7 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, 
                            KeyboardButton, ReplyKeyboardMarkup)
 
-from api import ApiGroupDTO, ApiRegionDTO, ApiTeacherDTO, ApiGroupedSubjectDTO
+from api import ApiGroupDTO, ApiRegionDTO, ApiTeacherDTO, ApiSubjectNameDTO
 
 class BroadcastCallbackFactory(CallbackData, prefix="broadcast"):
     action: str
@@ -354,7 +354,7 @@ def create_teacher_details_keyboard() -> InlineKeyboardMarkup:
     )
     return InlineKeyboardMarkup(inline_keyboard=[[button]])
 
-def create_subjects_keyboard(subjects: List[ApiGroupedSubjectDTO], columns: int = 2) -> InlineKeyboardMarkup:
+def create_subjects_keyboard(subjects: List[ApiSubjectNameDTO], columns: int = 2) -> InlineKeyboardMarkup:
     """Створює інлайн-клавіатуру зі списком предметів."""
     buttons = []
     row = []
