@@ -37,32 +37,27 @@ class ScheduleService:
         self._region_service = region_service
 
     async def get_schedule_for_day(self, telegram_id: int, schedule_date: date | None = None) -> DailyScheduleDTO:
-        """
-        Отримує розклад для користувача.
-        Якщо schedule_date не вказано, API самостійно визначить поточний день для користувача.
-        """
         user = await self._user_service.get_user_by_telegram_id(telegram_id)
         if not user:
-            raise ValueError("Користувача не знайдено. Будь ласка, зареєструйтесь: /start")
+            raise ValueError("Користувача не знайдено...")
         
         regions = await self._region_service.get_all_regions()
         user_region = next((r for r in regions if r.id == user.region_id), None)
         
         if not user_region:
-            raise ValueError(f"Не вдалося знайти регіон з ID={user.region_id} для користувача.")
+            raise ValueError(f"Не вдалося знайти регіон з ID={user.region_id}...")
 
-        time_zone_id = await self._region_service.get_timezone_by_id(user.region_id)
-        if not time_zone_id:
-            raise ValueError(f"Не вдалося знайти часовий пояс для регіону з ID={user.region_id}.")
-        
+        # НЕ делаем лишний вызов, а просто берем time_zone_id из уже полученного объекта
+        time_zone_id = user_region.time_zone_id
+
         date_str = schedule_date.isoformat() if schedule_date else None
         
         schedule_data = await self._schedule_gateway.get_daily_schedule_for_group(
             group_id=user.group_id,
-            time_zone_id=user_region.time_zone_id,
+            time_zone_id=time_zone_id, # Используем полученное значение
             date=date_str
         )
-        
+    
         return DailyScheduleDTO.model_validate(schedule_data)
     
     async def get_schedule_for_week(self, telegram_id: int, schedule_date: date | None = None) -> WeeklyScheduleDTO:
