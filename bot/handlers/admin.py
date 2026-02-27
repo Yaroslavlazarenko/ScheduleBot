@@ -1,6 +1,8 @@
 import logging
 import asyncio
+import json
 
+from bot.fsm import AdminFSM
 from aiogram import F, Router, types, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
@@ -176,3 +178,58 @@ async def handle_broadcast_confirmation(
         await state.clear()
         
     await query.answer()
+
+
+@admin_router.callback_query(F.data == "upload_json", AdminFilter())
+async def handle_upload_json_request(query: CallbackQuery, state: FSMContext):
+    # Явна перевірка типу повідомлення для Pylance
+    if not isinstance(query.message, Message):
+        await query.answer("Помилка: повідомлення недоступне.")
+        return
+
+    await state.set_state(AdminFSM.waiting_for_json)
+    await query.message.edit_text(
+        "📂 Надішліть файл `db.json` з новим розкладом.\n\n"
+        "<i>Увага: Бот оновить предмети, викладачів та розклад, але збереже всіх зареєстрованих користувачів.</i>",
+        reply_markup=create_cancel_fsm_keyboard()
+    )
+    await query.answer()
+
+@admin_router.message(AdminFSM.waiting_for_json, F.document, AdminFilter())
+async def handle_json_document(message: Message, state: FSMContext, services: BotServices, bot: Bot):
+    # 1. Перевіряємо, чи є документ і чи має він ім'я
+    document = message.document
+    if not document or not document.file_name or not document.file_name.endswith(".json"):
+        await message.reply("❌ Будь ласка, надішліть файл у форматі .json")
+        return
+
+    file_id = document.file_id
+    file = await bot.get_file(file_id)
+    
+    # 2. Перевіряємо, чи Telegram повернув шлях до файлу
+    if not file.file_path:
+        await message.reply("❌ Сталася помилка: Telegram не надав шлях до файлу.")
+        return
+
+    # Завантажуємо файл у пам'ять
+    downloaded_file = await bot.download_file(file.file_path)
+    
+    # 3. Перевіряємо, чи файл успішно завантажився
+    if not downloaded_file:
+        await message.reply("❌ Не вдалося завантажити файл із серверів Telegram.")
+        return
+
+    # Читаємо вміст
+    content = downloaded_file.read().decode('utf-8')
+
+    try:
+        new_data = json.loads(content)
+        # Перевірка, чи це правильний файл (чи є там розклад)
+        if "schedule_entries" not in new_data:
+            raise ValueError("У файлі відсутній ключ 'schedule_entries'")
+            
+        await services.db.update_static_data(new_data)
+        await message.reply("✅ Базу даних успішно оновлено! Розклад змінено.")
+        await state.clear()
+    except Exception as e:
+        await message.reply(f"❌ Помилка читання файлу: {e}\nПеревірте синтаксис JSON.")

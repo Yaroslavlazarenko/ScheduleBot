@@ -52,10 +52,12 @@ def create_settings_keyboard() -> InlineKeyboardMarkup:
 # ==========================================
 
 def create_admin_panel_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
+    buttons = [
         [InlineKeyboardButton(text="✉️ Створити розсилку", callback_data="start_broadcast")],
+        [InlineKeyboardButton(text="🔄 Оновити базу (JSON)", callback_data="upload_json")], # НОВА КНОПКА
         [InlineKeyboardButton(text="Закрити ❌", callback_data="close_admin_panel")]
-    ])
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def create_cancel_fsm_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="❌ Скасувати", callback_data=BroadcastCallbackFactory(action="cancel").pack())]])
@@ -141,4 +143,5 @@ def create_subjects_keyboard(subjects: list[dict], columns: int = 2) -> InlineKe
 
 def create_subject_details_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⬅️ Назад", callback_data=SubjectCallbackFactory(action="back").pack())]])
+
 

@@ -86,3 +86,19 @@ class JsonDatabase:
                 "meeting_url": entry["meeting_url"]
             })
         return sorted(result, key=lambda x: x["period_number"])
+    
+    async def update_static_data(self, new_data: dict):
+        """Оновлює розклад та налаштування, але зберігає існуючих користувачів."""
+        async with self._lock:
+            # Зберігаємо старих юзерів
+            users = self.data.get("users", [])
+            
+            # Замінюємо все інше новими даними
+            self.data = new_data
+            
+            # Повертаємо юзерів на місце
+            self.data["users"] = users
+            
+            # Зберігаємо у файл
+            async with aiofiles.open(self.file_path, mode='w', encoding='utf-8') as f:
+                await f.write(json.dumps(self.data, indent=2, ensure_ascii=False))

@@ -8,6 +8,9 @@ class SettingsFSM(StatesGroup):
     choosing_group = State()
     choosing_region = State()
 
+class AdminFSM(StatesGroup):
+    waiting_for_json = State()
+
 class BroadcastFSM(StatesGroup):
     choosing_type = State()
     getting_schedule_time = State()
