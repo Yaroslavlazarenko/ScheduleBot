@@ -69,9 +69,9 @@ async def handle_start_broadcast(query: CallbackQuery, state: FSMContext):
     await query.answer()
 
 
-@admin_router.callback_query(BroadcastFSM(), BroadcastCallbackFactory.filter(F.action == "cancel"))
+@admin_router.callback_query(BroadcastCallbackFactory.filter(F.action == "cancel"))
 async def handle_cancel_fsm(query: CallbackQuery, state: FSMContext):
-    """Скасовує будь-яку дію (розсилку) та очищує стан."""
+    """Скасовує будь-яку дію (розсилку або завантаження JSON) та очищує стан."""
     await state.clear()
     if isinstance(query.message, Message):
         await query.message.edit_text("Дію скасовано.")
