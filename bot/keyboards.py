@@ -52,9 +52,13 @@ def create_settings_keyboard() -> InlineKeyboardMarkup:
 # ==========================================
 
 def create_admin_panel_keyboard() -> InlineKeyboardMarkup:
+    """Створює інлайн-клавіатуру для адмін-панелі."""
     buttons = [
         [InlineKeyboardButton(text="✉️ Створити розсилку", callback_data="start_broadcast")],
-        [InlineKeyboardButton(text="🔄 Оновити базу (JSON)", callback_data="upload_json")], # НОВА КНОПКА
+        [
+            InlineKeyboardButton(text="⬇️ Скачати базу", callback_data="download_json"),
+            InlineKeyboardButton(text="⬆️ Завантажити нову", callback_data="upload_json")
+        ],
         [InlineKeyboardButton(text="Закрити ❌", callback_data="close_admin_panel")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)

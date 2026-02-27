@@ -5,7 +5,7 @@ import json
 from bot.fsm import AdminFSM
 from aiogram import F, Router, types, Bot
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 from aiogram.filters import BaseFilter
 from aiogram.exceptions import TelegramBadRequest
 
@@ -233,3 +233,31 @@ async def handle_json_document(message: Message, state: FSMContext, services: Bo
         await state.clear()
     except Exception as e:
         await message.reply(f"❌ Помилка читання файлу: {e}\nПеревірте синтаксис JSON.")
+
+
+@admin_router.callback_query(F.data == "download_json", AdminFilter())
+async def handle_download_json(query: CallbackQuery, services: BotServices):
+    """Надсилає адміністратору поточний файл db.json."""
+    if not isinstance(query.message, Message):
+        await query.answer("Помилка: повідомлення недоступне.")
+        return
+
+    try:
+        # Беремо шлях до файлу з нашого підключення до БД
+        file_path = services.db.file_path
+        
+        # Створюємо об'єкт файлу для відправки через Telegram
+        document = FSInputFile(file_path, filename="db.json")
+        
+        await query.message.answer_document(
+            document=document,
+            caption=(
+                "📂 Ось поточна база даних вашого бота.\n\n"
+                "Ви можете завантажити її, внести зміни у розклад чи викладачів, "
+                "а потім повернути її боту за допомогою кнопки <b>'⬆️ Завантажити нову'</b>."
+            )
+        )
+        await query.answer()
+    except Exception as e:
+        logger.exception("Failed to send db.json")
+        await query.answer(f"Помилка при скачуванні файлу: {e}", show_alert=True)
