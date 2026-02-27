@@ -1,12 +1,9 @@
 name: Deploy to AWS EC2
 
-# Запускать экшен только при пуше в ветку main (или master)
 on:
   push:
     branches:
-      - main
-      # Если твоя главная ветка называется master, раскомментируй строку ниже и удали main
-      # - master 
+      - master
 
 jobs:
   deploy:
@@ -25,7 +22,7 @@ jobs:
             cd ~/bots/ScheduleBot
             
             # Скачиваем последние изменения из GitHub
-            git pull origin main
+            git pull origin master
             
             # Пересобираем и перезапускаем Docker-контейнер
             sudo docker compose up -d --build
