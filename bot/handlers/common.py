@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from aiogram.exceptions import TelegramBadRequest
 
-from application.services import GroupService, UserService
+from application.bot_services import BotServices
 from bot.fsm import RegistrationFSM
 from bot.keyboards import create_groups_keyboard, create_main_keyboard
 
@@ -18,29 +18,37 @@ logger = logging.getLogger(__name__)
 @common_router.message(CommandStart())
 async def handle_start(
     message: Message, 
-    group_service: GroupService, 
-    user_service: UserService,
+    services: BotServices,
     state: FSMContext
 ):
     """
-    Перевіряє, чи зареєстрований користувач. Якщо так, показує головне меню.
-    Інакше починає процес реєстрації. Після відповіді видаляє команду /start.
+    Перевіряє, чи зареєстрований користувач локально (у db.json).
+    Якщо так, показує головне меню.
+    Інакше починає процес реєстрації.
+    Після відповіді видаляє команду /start, щоб не засмічувати чат.
     """
     if not message.from_user:
         return
     
     try:
-        user = await user_service.get_user_by_telegram_id(message.from_user.id)
+        # Шукаємо користувача в локальній базі
+        user = services.get_user(message.from_user.id)
+        
         if user:
+            # Юзер знайдений -> показуємо меню.
+            # Звертаємося до словника через .get(), щоб безпечно отримати поле is_admin
+            is_admin = user.get("is_admin", False)
+            
             await message.answer(
                 f"👋 З поверненням, {message.from_user.first_name}!\n\nОберіть дію:",
-                # <--- Ключевое изменение
-                reply_markup=create_main_keyboard(is_admin=user.is_admin)
+                reply_markup=create_main_keyboard(is_admin=is_admin)
             )
         else:
-            groups = await group_service.get_all_groups()
+            # Юзер не знайдений -> починаємо реєстрацію
+            groups = services.get_all_groups()
+            
             if not groups:
-                await message.answer("На жаль, зараз немає доступних груп для вибору. Спробуйте пізніше.")
+                await message.answer("На жаль, зараз немає доступних груп для вибору. Зверніться до адміністратора.")
             else:
                 keyboard = create_groups_keyboard(groups)
                 await message.answer(
@@ -54,6 +62,7 @@ async def handle_start(
         logger.exception("Error in handle_start")
         await message.answer('Сталася непередбачена помилка. Спробуйте почати знову: /start')
     finally:
+        # Спроба видалити команду /start (щоб чат був чистим)
         try:
             await message.delete()
         except TelegramBadRequest as e:

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+import asyncio
 
 from aiogram import F, Router, types, Bot
 from aiogram.fsm.context import FSMContext
@@ -7,172 +7,129 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import BaseFilter
 from aiogram.exceptions import TelegramBadRequest
 
-from application.services import UserService, BroadcastService
+from application.bot_services import BotServices
 from bot.fsm import BroadcastFSM
-from bot.keyboards import (create_admin_panel_keyboard, create_broadcast_confirmation_keyboard,
-                           create_cancel_fsm_keyboard, create_broadcast_type_keyboard)
-from bot.keyboards import BroadcastCallbackFactory
+from bot.keyboards import (
+    create_admin_panel_keyboard, 
+    create_broadcast_confirmation_keyboard,
+    create_cancel_fsm_keyboard, 
+    BroadcastCallbackFactory
+)
 
 logger = logging.getLogger(__name__)
 admin_router = Router(name="admin_router")
 
+
 class AdminFilter(BaseFilter):
-    async def __call__(self, event: types.Message | types.CallbackQuery, user_service: UserService) -> bool:
+    """Фільтр для перевірки, чи є користувач адміністратором локально (в db.json)."""
+    async def __call__(
+        self, 
+        event: types.Message | types.CallbackQuery, 
+        services: BotServices
+    ) -> bool:
         if not event.from_user:
             return False
-        user = await user_service.get_user_by_telegram_id(event.from_user.id)
-        return user is not None and user.is_admin
+        
+        user = services.get_user(event.from_user.id)
+        return user is not None and user.get("is_admin", False)
+
 
 @admin_router.message(F.text == "👑 Адмін-панель", AdminFilter())
 async def handle_admin_panel(message: Message):
+    """Відкриває головне меню адмін-панелі."""
     await message.answer("Вітаємо в адмін-панелі!", reply_markup=create_admin_panel_keyboard())
-    await message.delete()
+    try:
+        await message.delete()
+    except TelegramBadRequest:
+        logger.warning("Could not delete user's admin panel request message.")
+
 
 @admin_router.callback_query(F.data == "close_admin_panel", AdminFilter())
 async def handle_close_admin_panel(query: CallbackQuery):
+    """Закриває адмін-панель."""
     if isinstance(query.message, Message):
         try:
             await query.message.delete()
         except TelegramBadRequest:
-            logger.warning("Could not delete admin panel message.")
+            pass
     await query.answer()
+
 
 @admin_router.callback_query(F.data == "start_broadcast", AdminFilter())
 async def handle_start_broadcast(query: CallbackQuery, state: FSMContext):
+    """Починає процес створення розсилки."""
     if isinstance(query.message, Message):
-        await state.set_state(BroadcastFSM.choosing_type)
+        await state.set_state(BroadcastFSM.getting_message)
         await query.message.edit_text(
-            "Оберіть тип розсилки:",
-            reply_markup=create_broadcast_type_keyboard()
+            "Введіть текст повідомлення для розсилки (можна використовувати HTML-теги форматування):",
+            reply_markup=create_cancel_fsm_keyboard()
         )
     await query.answer()
 
+
 @admin_router.callback_query(BroadcastFSM(), BroadcastCallbackFactory.filter(F.action == "cancel"))
 async def handle_cancel_fsm(query: CallbackQuery, state: FSMContext):
+    """Скасовує будь-яку дію (розсилку) та очищує стан."""
     await state.clear()
     if isinstance(query.message, Message):
         await query.message.edit_text("Дію скасовано.")
     await query.answer()
 
-@admin_router.callback_query(BroadcastFSM.choosing_type, BroadcastCallbackFactory.filter(F.action.in_({"send_now", "schedule"})))
-async def handle_broadcast_type(query: CallbackQuery, state: FSMContext, callback_data: BroadcastCallbackFactory):
+
+@admin_router.message(BroadcastFSM.getting_message, AdminFilter())
+async def handle_get_broadcast_message(message: Message, state: FSMContext, bot: Bot):
+    """Отримує текст від адміна, зберігає в стан і показує прев'ю."""
+    if not message.text and not message.html_text:
+        await message.reply("Будь ласка, надішліть текстове повідомлення.")
+        return
+    
+    # Зберігаємо HTML-форматований текст
+    message_text = message.html_text
+    await state.update_data(message_text=message_text)
+    await state.set_state(BroadcastFSM.confirming_broadcast)
+    
+    preview_text = "<b><u>Попередній перегляд розсилки</u></b>\n\n"
+    preview_text += "🚀 <b>Тип відправки:</b> Негайно всім користувачам\n\n"
+    preview_text += "<b>Текст повідомлення:</b>\n────────────────────\n"
+    
+    await message.answer(preview_text)
+    await message.answer(
+        message_text,
+        reply_markup=create_broadcast_confirmation_keyboard(is_scheduled=False)
+    )
+    
+    try:
+        await message.delete()
+    except TelegramBadRequest:
+        pass
+
+
+@admin_router.callback_query(BroadcastFSM.confirming_broadcast, BroadcastCallbackFactory.filter(), AdminFilter())
+async def handle_broadcast_confirmation(
+    query: CallbackQuery, 
+    callback_data: BroadcastCallbackFactory, 
+    state: FSMContext,
+    services: BotServices, 
+    bot: Bot
+):
+    """Обробляє підтвердження розсилки (Надіслати / Редагувати / Скасувати)."""
     if not isinstance(query.message, Message):
         await query.answer("Помилка: повідомлення недоступне.")
         return
 
-    if callback_data.action == "send_now":
-        await state.update_data(is_scheduled=False)
-        await state.set_state(BroadcastFSM.getting_message)
-        await query.message.edit_text(
-            "Введіть текст повідомлення для негайної розсилки:",
-            reply_markup=create_cancel_fsm_keyboard()
-        )
-    elif callback_data.action == "schedule":
-        await state.update_data(is_scheduled=True)
-        await state.set_state(BroadcastFSM.getting_schedule_time)
-        await query.message.edit_text(
-            "Введіть дату та час для відправки у форматі `РРРР-ММ-ДД ГГ:ХХ` (UTC).\n\n"
-            "Наприклад: `2024-09-01 08:30`",
-            reply_markup=create_cancel_fsm_keyboard(),
-            parse_mode="Markdown"
-        )
-    await query.answer()
-
-@admin_router.message(BroadcastFSM.getting_schedule_time)
-async def handle_get_schedule_time(message: Message, state: FSMContext):
-    if not message.text:
-        await message.reply("Будь ласка, надішліть час у текстовому форматі.")
-        return
-
-    try:
-        schedule_dt_naive = datetime.strptime(message.text, "%Y-%m-%d %H:%M")
-        schedule_dt_utc = schedule_dt_naive.replace(tzinfo=timezone.utc)
-
-        if schedule_dt_utc <= datetime.now(timezone.utc):
-            await message.reply("❌ Помилка: вказаний час вже минув. Введіть майбутню дату та час.")
-            return
-
-        await state.update_data(schedule_time=schedule_dt_utc)
-        await state.set_state(BroadcastFSM.getting_message)
-        await message.answer(
-            f"✅ Час заплановано на {schedule_dt_utc.strftime('%Y-%m-%d %H:%M %Z')}.\n\n"
-            "Тепер введіть текст повідомлення:",
-            reply_markup=create_cancel_fsm_keyboard()
-        )
-
-    except ValueError:
-        await message.reply("❌ Неправильний формат. Будь ласка, введіть дату та час у форматі `РРРР-ММ-ДД ГГ:ХХ`.")
-    finally:
-        try:
-            await message.delete()
-        except TelegramBadRequest:
-            logger.warning("Could not delete user's time input message.")
-
-
-async def show_confirmation_preview(bot: Bot, chat_id: int, state: FSMContext):
-    """Вспомогательная функция для отображения превью."""
-    data = await state.get_data()
-    message_text = data.get("message_text", "Текст не встановлено.")
-    is_scheduled = data.get("is_scheduled", False)
-    schedule_time: datetime | None = data.get("schedule_time")
-
-    preview_text = "<b><u>Попередній перегляд розсилки</u></b>\n\n"
-    if is_scheduled and schedule_time:
-        preview_text += f"🕒 <b>Заплановано на:</b> {schedule_time.strftime('%Y-%m-%d %H:%M %Z')}\n\n"
-    else:
-        preview_text += "🚀 <b>Тип відправки:</b> Негайно\n\n"
-    
-    preview_text += "<b>Текст повідомлення:</b>\n────────────────────\n"
-    
-    await bot.send_message(chat_id, preview_text)
-    await bot.send_message(
-        chat_id,
-        message_text,
-        reply_markup=create_broadcast_confirmation_keyboard(is_scheduled=is_scheduled)
-    )
-
-@admin_router.message(BroadcastFSM.getting_message)
-async def handle_get_broadcast_message(message: Message, state: FSMContext, bot: Bot):
-    if not message.text:
-        await message.reply("Будь ласка, надішліть текст для розсилки.")
-        return
-    
-    await state.update_data(message_text=message.html_text)
-    await state.set_state(BroadcastFSM.confirming_broadcast)
-    await show_confirmation_preview(bot, message.chat.id, state)
-    try:
-        await message.delete()
-    except TelegramBadRequest:
-        logger.warning("Could not delete user's broadcast text message.")
-
-@admin_router.callback_query(BroadcastFSM.confirming_broadcast, BroadcastCallbackFactory.filter())
-async def handle_broadcast_confirmation(
-    query: CallbackQuery, callback_data: BroadcastCallbackFactory, state: FSMContext,
-    broadcast_service: BroadcastService, bot: Bot
-):
-    if not isinstance(query.message, Message):
-        await query.answer("Помилка: повідомлення недоступне для взаємодії.")
-        return
-
+    # Прибираємо повідомлення з прев'ю
     try:
         await query.message.delete()
         preview_text_message_id = query.message.message_id - 1
         await bot.delete_message(query.message.chat.id, preview_text_message_id)
     except TelegramBadRequest:
-        logger.warning("Could not delete preview messages.")
+        pass
 
     if callback_data.action == "edit_text":
         await state.set_state(BroadcastFSM.getting_message)
-        await query.message.answer("Введіть новий текст повідомлення:", reply_markup=create_cancel_fsm_keyboard())
-        await query.answer()
-        return
-    
-    if callback_data.action == "edit_time":
-        await state.set_state(BroadcastFSM.getting_schedule_time)
         await query.message.answer(
-            "Введіть нову дату та час для відправки у форматі `РРРР-ММ-ДД ГГ:ХХ` (UTC):",
-            reply_markup=create_cancel_fsm_keyboard(),
-            parse_mode="Markdown"
+            "Введіть новий текст повідомлення:", 
+            reply_markup=create_cancel_fsm_keyboard()
         )
         await query.answer()
         return
@@ -180,7 +137,6 @@ async def handle_broadcast_confirmation(
     if callback_data.action == "send":
         data = await state.get_data()
         message_text = data.get("message_text")
-        is_scheduled = data.get("is_scheduled", False)
         
         if not message_text:
             await query.message.answer("❌ Помилка: текст повідомлення не знайдено. Спробуйте знову.")
@@ -188,17 +144,35 @@ async def handle_broadcast_confirmation(
             await query.answer()
             return
 
-        schedule_time_obj: datetime | None = data.get("schedule_time")
-        schedule_time_iso = schedule_time_obj.isoformat() if schedule_time_obj else None
+        await query.message.answer("🚀 Починаю розсилку. Це може зайняти деякий час...")
         
-        creation_result = await broadcast_service.create_broadcast(message_text, schedule_time_iso)
-        await query.message.answer(creation_result)
+        users = services.db.get_all_users()
+        success_count = 0
+        failure_count = 0
 
-        if not is_scheduled:
-            await query.message.answer("🚀 Починаю розсилку...")
-            send_result = await broadcast_service.send_pending_broadcast(bot)
-            await query.message.answer(send_result)
+        # Цикл відправки (локально перебираємо всіх юзерів)
+        for user in users:
+            try:
+                await bot.send_message(
+                    chat_id=user["telegram_id"],
+                    text=message_text,
+                    parse_mode="HTML"
+                )
+                success_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to send broadcast to user {user['telegram_id']}: {e}")
+                failure_count += 1
+            
+            # Затримка 0.05 секунди (20 повідомлень на секунду), 
+            # щоб Telegram не заблокував бота за флуд (Flood Control)
+            await asyncio.sleep(0.05) 
 
+        report_text = (
+            f"✅ Розсилку успішно завершено!\n\n"
+            f"🟢 Надіслано успішно: {success_count}\n"
+            f"🔴 Помилок (юзер заблокував бота тощо): {failure_count}"
+        )
+        await query.message.answer(report_text)
         await state.clear()
         
     await query.answer()

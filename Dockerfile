@@ -1,12 +1,20 @@
-FROM python:3.11-slim-bookworm
+# Використовуємо офіційний легкий образ Python
+FROM python:3.11-slim
 
+# Встановлюємо змінну середовища, щоб логи Python відразу виводилися в термінал (без буферизації)
+ENV PYTHONUNBUFFERED=1
+
+# Встановлюємо робочу директорію всередині контейнера
 WORKDIR /app
 
-ENV PYTHONUNBUFFERED 1
-
+# Копіюємо файл із залежностями
 COPY requirements.txt .
+
+# Встановлюємо залежності без збереження кешу (щоб зменшити розмір образу)
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Копіюємо весь інший код бота в контейнер
 COPY . .
 
+# Команда для запуску бота
 CMD ["python", "main.py"]

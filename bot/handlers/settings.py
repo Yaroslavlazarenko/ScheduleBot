@@ -5,11 +5,16 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from application.services import GroupService, RegionService, UserService
+from application.bot_services import BotServices
 from bot.fsm import SettingsFSM
-from bot.keyboards import (GroupCallbackFactory, RegionCallbackFactory,
-                           SettingsCallbackFactory, create_groups_keyboard,
-                           create_regions_keyboard, create_settings_keyboard)
+from bot.keyboards import (
+    GroupCallbackFactory, 
+    RegionCallbackFactory,
+    SettingsCallbackFactory, 
+    create_groups_keyboard,
+    create_regions_keyboard, 
+    create_settings_keyboard
+)
 
 logger = logging.getLogger(__name__)
 settings_router = Router(name="settings_router")
@@ -38,9 +43,10 @@ async def handle_close_settings(query: types.CallbackQuery):
             await query.message.edit_reply_markup(reply_markup=None)
     await query.answer()
 
+
 @settings_router.callback_query(SettingsCallbackFactory.filter(F.action == "back_to_menu"))
 async def handle_back_to_settings_menu(query: types.CallbackQuery, state: FSMContext):
-    """Повертає користувача до головного меню налаштувань та очищує стан."""
+    """Повертає користувача до головного меню налаштувань та очищує стан FSM."""
     if not isinstance(query.message, Message):
         await query.answer("Помилка: повідомлення недоступне.", show_alert=True)
         return
@@ -52,18 +58,19 @@ async def handle_back_to_settings_menu(query: types.CallbackQuery, state: FSMCon
     )
     await query.answer()
 
+
 @settings_router.callback_query(SettingsCallbackFactory.filter(F.action == "change_group"))
 async def handle_change_group_request(
     query: types.CallbackQuery,
     state: FSMContext,
-    group_service: GroupService
+    services: BotServices
 ):
-    """Починає процес зміни групи."""
+    """Відкриває меню вибору нової групи."""
     if not isinstance(query.message, Message):
         await query.answer("Помилка: повідомлення недоступне.", show_alert=True)
         return
 
-    groups = await group_service.get_all_groups()
+    groups = services.get_all_groups()
     if not groups:
         await query.message.edit_text("На жаль, зараз немає доступних груп для вибору.")
         await query.answer()
@@ -83,18 +90,18 @@ async def handle_new_group_selection(
     query: types.CallbackQuery,
     callback_data: GroupCallbackFactory,
     state: FSMContext,
-    user_service: UserService
+    services: BotServices
 ):
-    """Обробляє вибір нової групи та оновлює дані користувача."""
+    """Обробляє вибір нової групи та записує зміни в JSON."""
     if not isinstance(query.message, Message):
         await query.answer("Помилка: повідомлення недоступне.", show_alert=True)
         return
         
     await query.message.edit_text("Оновлюю вашу групу...")
     try:
-        await user_service.change_user_group(
+        await services.change_user_group(
             telegram_id=query.from_user.id,
-            new_group_id=callback_data.id
+            group_id=callback_data.id
         )
         await query.message.edit_text(f"✅ Вашу групу успішно змінено на <b>{callback_data.name}</b>.")
     except Exception as e:
@@ -109,14 +116,14 @@ async def handle_new_group_selection(
 async def handle_change_region_request(
     query: types.CallbackQuery,
     state: FSMContext,
-    region_service: RegionService
+    services: BotServices
 ):
-    """Починає процес зміни часового поясу."""
+    """Відкриває меню вибору нового часового поясу."""
     if not isinstance(query.message, Message):
         await query.answer("Помилка: повідомлення недоступне.", show_alert=True)
         return
         
-    regions = await region_service.get_all_regions()
+    regions = services.get_all_regions()
     if not regions:
         await query.message.edit_text("Помилка: не вдалося завантажити список часових поясів.")
         await query.answer()
@@ -136,22 +143,22 @@ async def handle_new_region_selection(
     query: types.CallbackQuery,
     callback_data: RegionCallbackFactory,
     state: FSMContext,
-    user_service: UserService,
-    region_service: RegionService
+    services: BotServices
 ):
-    """Обробляє вибір нового часового поясу та оновлює дані користувача."""
+    """Обробляє вибір нового регіону та записує зміни в JSON."""
     if not isinstance(query.message, Message):
         await query.answer("Помилка: повідомлення недоступне.", show_alert=True)
         return
 
     await query.message.edit_text("Оновлюю ваш часовий пояс...")
     try:
-        await user_service.change_user_region(
+        await services.change_user_region(
             telegram_id=query.from_user.id,
-            new_region_id=callback_data.id
+            region_id=callback_data.id
         )
-        regions = await region_service.get_all_regions()
-        region_name = next((r.name for r in regions if r.id == callback_data.id), "невідомий")
+        
+        region = services.db.get_region(callback_data.id)
+        region_name = region["name"] if region else "невідомий"
         
         await query.message.edit_text(f"✅ Ваш часовий пояс успішно змінено на <b>{region_name}</b>.")
     except Exception as e:
