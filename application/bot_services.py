@@ -60,7 +60,9 @@ class BotServices:
         if day_of_week in [6, 7]:
             return header + "🎉 Вихідний день! Пар немає."
 
-        lessons = self.db.get_schedule(group_id, day_of_week, parity)
+        # ПЕРЕДАЄМО week_number СЮДИ
+        lessons = self.db.get_schedule(group_id, day_of_week, parity, week_number)
+        
         if not lessons:
             return header + "🎉 Пар немає, можна відпочити!"
 
@@ -95,7 +97,9 @@ class BotServices:
             day_of_week = current_day.isoweekday()
             parts.append(f"\n<b><u>{DAYS_UA.get(day_of_week)}, {current_day.day} {MONTHS_UA.get(current_day.month)}</u></b>")
 
-            lessons = self.db.get_schedule(group_id, day_of_week, parity)
+            # ПЕРЕДАЄМО week_number СЮДИ
+            lessons = self.db.get_schedule(group_id, day_of_week, parity, week_number)
+            
             if not lessons:
                 parts.append("  🎉 <i>Пар немає</i>")
                 continue

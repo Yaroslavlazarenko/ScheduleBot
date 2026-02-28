@@ -65,10 +65,19 @@ class JsonDatabase:
     def get_subjects(self):
         return self.data.get("subjects", [])
 
-    def get_schedule(self, group_id: int, day_of_week: int, parity: str):
-        entries = [e for e in self.data.get("schedule_entries", []) 
-                   if e["group_id"] == group_id and e["day_of_week"] == day_of_week 
-                   and e["week_parity"] in [parity, "всі"]]
+    def get_schedule(self, group_id: int, day_of_week: int, parity: str, current_week_number: int):
+        """Отримує пари для конкретної групи, дня, типу тижня та враховує діапазон тижнів."""
+        entries = []
+        for e in self.data.get("schedule_entries", []):
+            # Перевіряємо групу, день і парність
+            if e["group_id"] == group_id and e["day_of_week"] == day_of_week and e["week_parity"] in [parity, "всі"]:
+                
+                # Додаємо перевірку діапазону тижнів (якщо він вказаний у JSON)
+                week_start = e.get("week_start", 1)
+                week_end = e.get("week_end", 99)
+                
+                if week_start <= current_week_number <= week_end:
+                    entries.append(e)
         
         result = []
         for entry in entries:
