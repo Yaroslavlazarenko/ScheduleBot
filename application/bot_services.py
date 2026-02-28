@@ -57,6 +57,9 @@ class BotServices:
         divider = "═" * 20
         header = f"🗓 <b>{DAYS_UA.get(day_of_week)}, {target_date.day} {MONTHS_UA.get(target_date.month)}</b>\n👥 {group['name']} · Тиждень {week_number} ({parity})\n{divider}\n"
 
+        if day_of_week == 5:
+            return header + "📚 День курсового проєктування"
+        
         if day_of_week in [6, 7]:
             return header + "🎉 Вихідний день! Пар немає."
 
@@ -97,6 +100,10 @@ class BotServices:
             day_of_week = current_day.isoweekday()
             parts.append(f"\n<b><u>{DAYS_UA.get(day_of_week)}, {current_day.day} {MONTHS_UA.get(current_day.month)}</u></b>")
 
+            if day_of_week == 5:
+                parts.append("  📚 <i>День курсового проєктування</i>")
+                continue
+            
             # ПЕРЕДАЄМО week_number СЮДИ
             lessons = self.db.get_schedule(group_id, day_of_week, parity, week_number)
             
