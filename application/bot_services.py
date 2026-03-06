@@ -1,6 +1,6 @@
 import logging
 import uuid # <-- Додано
-from datetime import date, timedelta, datetime, timezone
+from datetime import date, timedelta, datetime, time 
 from database.json_db import JsonDatabase
 
 logger = logging.getLogger(__name__)
@@ -47,52 +47,29 @@ class BotServices:
         if user and region:
             await self.db.save_user(telegram_id, user.get("username", ""), user.get("group_id", 0), region_id, region["timezone"], user.get("is_admin", False))
 
-    def generate_group_ics_calendar(self, group_id: int) -> bytes | None:
-        """Генерує файл розкладу .ics для конкретної групи виключно на навчальні тижні з нагадуваннями."""
+    def get_group_events_data(self, group_id: int) -> list:
+        """Збирає список пар у форматі словників для Google Calendar API."""
         group = self.db.get_group(group_id)
         if not group:
-            return None
+            return[]
 
-        # 1. Беремо початок семестру
         start_date_str = self.db.data.get("metadata", {}).get("semester_start", "2024-09-01")
         try:
             start_date = date.fromisoformat(start_date_str)
         except ValueError:
             start_date = date.today()
             
-        # 2. Знаходимо всі пари цієї групи, щоб визначити, скільки тижнів триває їхнє навчання
         group_entries =[e for e in self.db.data.get("schedule_entries", []) if e.get("group_id") == group_id]
-        
-        # 3. Шукаємо максимальний тиждень (week_end). 
-        max_week = 0
-        for entry in group_entries:
-            we = entry.get("week_end")
-            if we and we != 99 and we > max_week:
-                max_week = we
-                
-        # Якщо week_end не вказано або стоїть 99, намагаємось взяти загальну кількість тижнів
+        max_week = max([e.get("week_end", 0) for e in group_entries if e.get("week_end", 0) != 99] or [0])
         if max_week == 0:
             max_week = self.db.data.get("metadata", {}).get("total_weeks", 20)
         
-        # Кінцева дата = початок семестру + кількість навчальних тижнів
         end_date = start_date + timedelta(weeks=max_week)
-
-        # Стандартні заголовки iCalendar
-        cal_lines =[
-            "BEGIN:VCALENDAR",
-            "VERSION:2.0",
-            "PRODID:-//ScheduleBot//UA",
-            "CALSCALE:GREGORIAN",
-            "METHOD:PUBLISH",
-            f"X-WR-CALNAME:Розклад {group['name']}",
-            "X-WR-TIMEZONE:Europe/Kyiv"
-        ]
-
         current_date = start_date
+        events =[]
+
         while current_date <= end_date:
             day_of_week = current_date.isoweekday()
-            
-            # Пропускаємо вихідні дні для оптимізації
             if day_of_week in [6, 7]:
                 current_date += timedelta(days=1)
                 continue
@@ -104,65 +81,30 @@ class BotServices:
                 try:
                     start_h, start_m = map(int, l["start_time"].split(":"))
                     end_h, end_m = map(int, l["end_time"].split(":"))
-                except (ValueError, KeyError):
-                    continue # Пропускаємо пару з некоректним часом
+                except ValueError:
+                    continue 
                 
-                # Формат дати і часу для .ics: YYYYMMDDTHHMMSS
-                dtstart = f"{current_date.strftime('%Y%m%d')}T{start_h:02d}{start_m:02d}00"
-                dtend = f"{current_date.strftime('%Y%m%d')}T{end_h:02d}{end_m:02d}00"
-                
-                # ФІКС: Робимо UID детермінованим (постійним). Без uuid! 
-                # Якщо розклад зміниться, календар оновить подію, а не створить дублікат.
-                uid = f"lesson-{group_id}-{current_date.strftime('%Y%m%d')}T{start_h:02d}{start_m:02d}@schedulebot"
-                dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                # Формуємо об'єкти datetime
+                start_dt = datetime.combine(current_date, time(start_h, start_m))
+                end_dt = datetime.combine(current_date, time(end_h, end_m))
                 
                 summary = f"{l['subject_name']} ({l['subject_type']})"
                 
                 desc_lines =[]
-                if l.get('teacher_name'): 
-                    desc_lines.append(f"Викладач: {l['teacher_name']}")
-                if l.get('meeting_url'): 
-                    desc_lines.append(f"Посилання: {l['meeting_url']}")
-                
-                description = "\\n".join(desc_lines)
-                
-                reminder_dt = datetime(
-                    current_date.year, current_date.month, current_date.day,
-                    start_h, start_m, 0,
-                    tzinfo=timezone.utc
-                ) - timedelta(minutes=10)
-                trigger_abs = reminder_dt.strftime("%Y%m%dT%H%M%SZ")
+                if l.get('teacher_name'): desc_lines.append(f"👨‍🏫 Викладач: {l['teacher_name']}")
+                if l.get('meeting_url'): desc_lines.append(f"🔗 Посилання: <a href='{l['meeting_url']}'>{l['meeting_url']}</a>")
+                description = "<br>".join(desc_lines) # Google API розуміє HTML-теги в описі
 
-                cal_lines.extend([
-                    "BEGIN:VEVENT",
-                    f"UID:{uid}",
-                    f"DTSTAMP:{dtstamp}",
-                    f"DTSTART;TZID=Europe/Kyiv:{dtstart}",
-                    f"DTEND;TZID=Europe/Kyiv:{dtend}",
-                    f"SUMMARY:{summary}",
-                    f"DESCRIPTION:{description}",
-                    # Относительное напоминание (для Apple/Outlook)
-                    "BEGIN:VALARM",
-                    "ACTION:DISPLAY",
-                    "DESCRIPTION:Нагадування про пару",
-                    "TRIGGER:-PT10M",
-                    "END:VALARM",
-                    # Абсолютное напоминание (для Google Calendar на Android)
-                    "BEGIN:VALARM",
-                    "ACTION:DISPLAY",
-                    "DESCRIPTION:Нагадування про пару",
-                    f"TRIGGER;VALUE=DATE-TIME:{trigger_abs}",
-                    "END:VALARM",
-                    "END:VEVENT"
-                ])
+                events.append({
+                    "summary": summary,
+                    "description": description,
+                    "start_dt": start_dt,
+                    "end_dt": end_dt
+                })
                 
             current_date += timedelta(days=1)
-
-        cal_lines.append("END:VCALENDAR")
-        
-        # З'єднуємо з правильним закінченням рядків (\r\n за стандартом RFC 5545)
-        ics_content = "\r\n".join(cal_lines)
-        return ics_content.encode('utf-8')
+            
+        return events
     
     # --- Нові базові методи генерації по ID групи ---
     def format_daily_schedule_by_group(self, group_id: int, target_date: date) -> str:

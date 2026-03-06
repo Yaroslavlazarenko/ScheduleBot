@@ -7,4 +7,5 @@ services:
       - .env
     volumes:
       - ./db.json:/app/db.json
+      - ./credentials.json:/app/credentials.json:ro  # <-- ДОДАНО (ro означає Read-Only, лише для читання)
     network_mode: "host"

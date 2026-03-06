@@ -131,35 +131,44 @@ async def handle_generate_calendar_request(query: CallbackQuery, state: FSMConte
 
 @admin_router.callback_query(AdminFSM.choosing_group_for_calendar, AdminCalendarGroupFactory.filter(), AdminFilter())
 async def handle_calendar_group_selection(query: CallbackQuery, callback_data: AdminCalendarGroupFactory, state: FSMContext, services: BotServices):
-    """Генерує та відправляє .ics файл для обраної групи."""
+    """Створює календар через Google API та відправляє посилання-підписку."""
     if not isinstance(query.message, Message): 
         return
     
-    await query.message.edit_text("⏳ Генерую розклад, зачекайте кілька секунд...")
+    await query.message.edit_text("⏳ Збираю дані розкладу. Зачекайте...")
+    events_list = services.get_group_events_data(callback_data.group_id)
     
-    ics_bytes = services.generate_group_ics_calendar(callback_data.group_id)
-    if not ics_bytes:
-        await query.message.edit_text("❌ Помилка генерації календаря. Можливо, групу не знайдено.")
+    if not events_list:
+        await query.message.edit_text("❌ Помилка: немає розкладу для цієї групи.")
         await state.clear()
         return
         
     group = services.db.get_group(callback_data.group_id)
     group_name = group["name"] if group else "Unknown"
     
-    # Створюємо файл у пам'яті для відправки
-    file = BufferedInputFile(ics_bytes, filename=f"Schedule_{group_name.replace(' ', '_')}.ics")
+    # Оскільки запитів багато (по 0.2с на пару), це може зайняти ~20-40 секунд
+    await query.message.edit_text(f"🌐 Підключаюсь до Google. Створюю {len(events_list)} пар...\nЦе може зайняти до 1 хвилини, будь ласка, зачекайте.")
     
-    await query.message.answer_document(
-        document=file,
-        caption=(
-            f"✅ <b>Календар для групи {group_name} успішно згенеровано!</b>\n\n"
-            f"📥 <i>Як користуватися:</i>\n"
-            f"Перешліть цей файл студентам. Після завантаження та відкриття файлу на телефоні (або ПК), "
-            f"система автоматично запропонує імпортувати всі пари до їхнього Google Календаря чи Apple Calendar."
-        )
+    from application.gcal import GoogleCalendarAPI
+    gcal = GoogleCalendarAPI()
+    
+    calendar_id = await gcal.create_calendar_for_group(group_name, events_list)
+    
+    if not calendar_id:
+        await query.message.edit_text("❌ Помилка роботи з Google API. Перевірте файл credentials.json.")
+        await state.clear()
+        return
+        
+    # Формуємо URL для прямої підписки
+    subscribe_url = f"https://calendar.google.com/calendar/r?cid={calendar_id}"
+    
+    await query.message.edit_text(
+        f"✅ <b>Google Календар для групи {group_name} успішно створено!</b>\n\n"
+        f"🔗 <b>Посилання для студентів:</b>\n{subscribe_url}\n\n"
+        f"<i>Студентам достатньо просто натиснути на це посилання, щоб розклад автоматично підтягнувся у їхній Google Календар з гарантованим нагадуванням за 10 хвилин.</i>",
+        disable_web_page_preview=True
     )
     
-    await query.message.delete()
     await state.clear()
     await query.answer()
 
