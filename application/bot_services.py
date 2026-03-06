@@ -1,5 +1,6 @@
 import logging
-from datetime import date, timedelta
+import uuid # <-- Додано
+from datetime import date, timedelta, datetime, timezone
 from database.json_db import JsonDatabase
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,109 @@ class BotServices:
         if user and region:
             await self.db.save_user(telegram_id, user.get("username", ""), user.get("group_id", 0), region_id, region["timezone"], user.get("is_admin", False))
 
+    def generate_group_ics_calendar(self, group_id: int) -> bytes | None:
+        """Генерує файл розкладу .ics для конкретної групи виключно на навчальні тижні."""
+        group = self.db.get_group(group_id)
+        if not group:
+            return None
+
+        # 1. Беремо початок семестру
+        start_date_str = self.db.data.get("metadata", {}).get("semester_start", "2024-09-01")
+        try:
+            start_date = date.fromisoformat(start_date_str)
+        except ValueError:
+            start_date = date.today()
+            
+        # 2. Знаходимо всі пари цієї групи, щоб визначити, скільки тижнів триває їхнє навчання
+        group_entries =[e for e in self.db.data.get("schedule_entries", []) if e.get("group_id") == group_id]
+        
+        # 3. Шукаємо максимальний тиждень (week_end). 
+        # Відкидаємо 99 (у багатьох базах це заглушка "безкінечності" або "до кінця року")
+        max_week = 0
+        for entry in group_entries:
+            we = entry.get("week_end")
+            if we and we != 99 and we > max_week:
+                max_week = we
+                
+        # Якщо week_end не вказано або скрізь стоїть 99, намагаємось взяти загальну кількість тижнів
+        # із налаштувань (metadata -> total_weeks) або ставимо 20 (середня тривалість семестру)
+        if max_week == 0:
+            max_week = self.db.data.get("metadata", {}).get("total_weeks", 20)
+        
+        # Кінцева дата = початок семестру + кількість навчальних тижнів
+        end_date = start_date + timedelta(weeks=max_week)
+
+        # Стандартні заголовки iCalendar
+        cal_lines =[
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//ScheduleBot//UA",
+            "CALSCALE:GREGORIAN",
+            "METHOD:PUBLISH",
+            f"X-WR-CALNAME:Розклад {group['name']}",
+            "X-WR-TIMEZONE:Europe/Kyiv"
+        ]
+
+        current_date = start_date
+        while current_date <= end_date:
+            day_of_week = current_date.isoweekday()
+            
+            # Пропускаємо вихідні дні для оптимізації
+            if day_of_week in[6, 7]:
+                current_date += timedelta(days=1)
+                continue
+
+            week_number, parity = self._get_week_parity(current_date)
+            
+            # Отримуємо пари саме для поточного тижня (з урахуванням week_start та week_end в самій БД)
+            lessons = self.db.get_schedule(group_id, day_of_week, parity, week_number)
+            
+            for l in lessons:
+                try:
+                    start_h, start_m = map(int, l["start_time"].split(":"))
+                    end_h, end_m = map(int, l["end_time"].split(":"))
+                except (ValueError, KeyError):
+                    continue # Пропускаємо пару з некоректним часом
+                
+                # Формат дати і часу для .ics: YYYYMMDDTHHMMSS
+                dtstart = f"{current_date.strftime('%Y%m%d')}T{start_h:02d}{start_m:02d}00"
+                dtend = f"{current_date.strftime('%Y%m%d')}T{end_h:02d}{end_m:02d}00"
+                
+                # Унікальний ідентифікатор події (важливо, щоб події не дублювались в календарі)
+                uid = f"{current_date.strftime('%Y%m%d')}-{start_h:02d}{start_m:02d}-{group_id}@{uuid.uuid4().hex[:8]}"
+                dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                
+                summary = f"{l['subject_name']} ({l['subject_type']})"
+                
+                # Збираємо опис (викладач + посилання)
+                desc_lines =[]
+                if l.get('teacher_name'): 
+                    desc_lines.append(f"Викладач: {l['teacher_name']}")
+                if l.get('meeting_url'): 
+                    desc_lines.append(f"Посилання: {l['meeting_url']}")
+                
+                # Замінюємо перенесення рядків на спеціальні символи для .ics (\n)
+                description = "\\n".join(desc_lines)
+                
+                cal_lines.extend([
+                    "BEGIN:VEVENT",
+                    f"UID:{uid}",
+                    f"DTSTAMP:{dtstamp}",
+                    f"DTSTART;TZID=Europe/Kyiv:{dtstart}",
+                    f"DTEND;TZID=Europe/Kyiv:{dtend}",
+                    f"SUMMARY:{summary}",
+                    f"DESCRIPTION:{description}",
+                    "END:VEVENT"
+                ])
+                
+            current_date += timedelta(days=1)
+
+        cal_lines.append("END:VCALENDAR")
+        
+        # З'єднуємо з правильним закінченням рядків (\r\n за стандартом RFC 5545)
+        ics_content = "\r\n".join(cal_lines)
+        return ics_content.encode('utf-8')
+    
     # --- Нові базові методи генерації по ID групи ---
     def format_daily_schedule_by_group(self, group_id: int, target_date: date) -> str:
         group = self.db.get_group(group_id)

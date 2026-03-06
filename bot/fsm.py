@@ -10,6 +10,7 @@ class SettingsFSM(StatesGroup):
 
 class AdminFSM(StatesGroup):
     waiting_for_json = State()
+    choosing_group_for_calendar = State() # <-- Додано новий стан
 
 class BroadcastFSM(StatesGroup):
     choosing_type = State()

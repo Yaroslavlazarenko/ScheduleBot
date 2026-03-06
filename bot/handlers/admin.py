@@ -5,7 +5,7 @@ import json
 from bot.fsm import AdminFSM
 from aiogram import F, Router, types, Bot
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile, BufferedInputFile
 from aiogram.filters import BaseFilter
 from aiogram.exceptions import TelegramBadRequest
 
@@ -15,7 +15,9 @@ from bot.keyboards import (
     create_admin_panel_keyboard, 
     create_broadcast_confirmation_keyboard,
     create_cancel_fsm_keyboard, 
-    BroadcastCallbackFactory
+    BroadcastCallbackFactory,
+    create_admin_groups_keyboard,  # <-- Додано
+    AdminCalendarGroupFactory      # <-- Додано
 )
 
 logger = logging.getLogger(__name__)
@@ -105,6 +107,61 @@ async def handle_get_broadcast_message(message: Message, state: FSMContext, bot:
     except TelegramBadRequest:
         pass
 
+@admin_router.callback_query(F.data == "generate_calendar", AdminFilter())
+async def handle_generate_calendar_request(query: CallbackQuery, state: FSMContext, services: BotServices):
+    """Обробляє натискання кнопки 'Згенерувати Google Календар'."""
+    if not isinstance(query.message, Message): 
+        return
+    
+    groups = services.get_all_groups()
+    if not groups:
+        await query.answer("❌ Немає доступних груп у базі.", show_alert=True)
+        return
+        
+    keyboard = create_admin_groups_keyboard(groups)
+    
+    await state.set_state(AdminFSM.choosing_group_for_calendar)
+    await query.message.edit_text(
+        "📅 <b>Генерація Google Календаря</b>\n\n"
+        "Оберіть групу, для якої бажаєте створити файл розкладу (.ics):", 
+        reply_markup=keyboard
+    )
+    await query.answer()
+
+
+@admin_router.callback_query(AdminFSM.choosing_group_for_calendar, AdminCalendarGroupFactory.filter(), AdminFilter())
+async def handle_calendar_group_selection(query: CallbackQuery, callback_data: AdminCalendarGroupFactory, state: FSMContext, services: BotServices):
+    """Генерує та відправляє .ics файл для обраної групи."""
+    if not isinstance(query.message, Message): 
+        return
+    
+    await query.message.edit_text("⏳ Генерую розклад, зачекайте кілька секунд...")
+    
+    ics_bytes = services.generate_group_ics_calendar(callback_data.group_id)
+    if not ics_bytes:
+        await query.message.edit_text("❌ Помилка генерації календаря. Можливо, групу не знайдено.")
+        await state.clear()
+        return
+        
+    group = services.db.get_group(callback_data.group_id)
+    group_name = group["name"] if group else "Unknown"
+    
+    # Створюємо файл у пам'яті для відправки
+    file = BufferedInputFile(ics_bytes, filename=f"Schedule_{group_name.replace(' ', '_')}.ics")
+    
+    await query.message.answer_document(
+        document=file,
+        caption=(
+            f"✅ <b>Календар для групи {group_name} успішно згенеровано!</b>\n\n"
+            f"📥 <i>Як користуватися:</i>\n"
+            f"Перешліть цей файл студентам. Після завантаження та відкриття файлу на телефоні (або ПК), "
+            f"система автоматично запропонує імпортувати всі пари до їхнього Google Календаря чи Apple Calendar."
+        )
+    )
+    
+    await query.message.delete()
+    await state.clear()
+    await query.answer()
 
 @admin_router.callback_query(BroadcastFSM.confirming_broadcast, BroadcastCallbackFactory.filter(), AdminFilter())
 async def handle_broadcast_confirmation(

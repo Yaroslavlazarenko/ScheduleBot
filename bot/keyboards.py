@@ -21,6 +21,9 @@ class SettingsCallbackFactory(CallbackData, prefix="settings"):
 class SubjectCallbackFactory(CallbackData, prefix="subject"):
     action: str
     subject_name_id: int | None = None
+class AdminCalendarGroupFactory(CallbackData, prefix="admin_cal"):
+    group_id: int
+
 
 class ScheduleCallbackFactory(CallbackData, prefix="schedule"):
     action: str
@@ -53,14 +56,24 @@ def create_settings_keyboard() -> InlineKeyboardMarkup:
 
 def create_admin_panel_keyboard() -> InlineKeyboardMarkup:
     """Створює інлайн-клавіатуру для адмін-панелі."""
-    buttons = [
-        [InlineKeyboardButton(text="✉️ Створити розсилку", callback_data="start_broadcast")],
-        [
+    buttons = [[InlineKeyboardButton(text="✉️ Створити розсилку", callback_data="start_broadcast")],
+        [InlineKeyboardButton(text="📅 Згенерувати Google Календар (.ics)", callback_data="generate_calendar")],[
             InlineKeyboardButton(text="⬇️ Скачати базу", callback_data="download_json"),
             InlineKeyboardButton(text="⬆️ Завантажити нову", callback_data="upload_json")
-        ],
-        [InlineKeyboardButton(text="Закрити ❌", callback_data="close_admin_panel")]
+        ],[InlineKeyboardButton(text="Закрити ❌", callback_data="close_admin_panel")]
     ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def create_admin_groups_keyboard(groups: list[dict], columns: int = 2) -> InlineKeyboardMarkup:
+    buttons, row = [],[]
+    for g in groups:
+        row.append(InlineKeyboardButton(text=g["name"], callback_data=AdminCalendarGroupFactory(group_id=g["group_id"]).pack()))
+        if len(row) == columns: 
+            buttons.append(row)
+            row =[]
+    if row: 
+        buttons.append(row)
+    buttons.append([InlineKeyboardButton(text="❌ Скасувати", callback_data=BroadcastCallbackFactory(action="cancel").pack())])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def create_cancel_fsm_keyboard() -> InlineKeyboardMarkup:
