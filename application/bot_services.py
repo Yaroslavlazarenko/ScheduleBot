@@ -48,7 +48,7 @@ class BotServices:
             await self.db.save_user(telegram_id, user.get("username", ""), user.get("group_id", 0), region_id, region["timezone"], user.get("is_admin", False))
 
     def generate_group_ics_calendar(self, group_id: int) -> bytes | None:
-        """Генерує файл розкладу .ics для конкретної групи виключно на навчальні тижні."""
+        """Генерує файл розкладу .ics для конкретної групи виключно на навчальні тижні з нагадуваннями."""
         group = self.db.get_group(group_id)
         if not group:
             return None
@@ -61,18 +61,16 @@ class BotServices:
             start_date = date.today()
             
         # 2. Знаходимо всі пари цієї групи, щоб визначити, скільки тижнів триває їхнє навчання
-        group_entries =[e for e in self.db.data.get("schedule_entries", []) if e.get("group_id") == group_id]
+        group_entries = [e for e in self.db.data.get("schedule_entries", []) if e.get("group_id") == group_id]
         
         # 3. Шукаємо максимальний тиждень (week_end). 
-        # Відкидаємо 99 (у багатьох базах це заглушка "безкінечності" або "до кінця року")
         max_week = 0
         for entry in group_entries:
             we = entry.get("week_end")
             if we and we != 99 and we > max_week:
                 max_week = we
                 
-        # Якщо week_end не вказано або скрізь стоїть 99, намагаємось взяти загальну кількість тижнів
-        # із налаштувань (metadata -> total_weeks) або ставимо 20 (середня тривалість семестру)
+        # Якщо week_end не вказано або стоїть 99, намагаємось взяти загальну кількість тижнів
         if max_week == 0:
             max_week = self.db.data.get("metadata", {}).get("total_weeks", 20)
         
@@ -95,13 +93,11 @@ class BotServices:
             day_of_week = current_date.isoweekday()
             
             # Пропускаємо вихідні дні для оптимізації
-            if day_of_week in[6, 7]:
+            if day_of_week in [6, 7]:
                 current_date += timedelta(days=1)
                 continue
 
             week_number, parity = self._get_week_parity(current_date)
-            
-            # Отримуємо пари саме для поточного тижня (з урахуванням week_start та week_end в самій БД)
             lessons = self.db.get_schedule(group_id, day_of_week, parity, week_number)
             
             for l in lessons:
@@ -115,20 +111,17 @@ class BotServices:
                 dtstart = f"{current_date.strftime('%Y%m%d')}T{start_h:02d}{start_m:02d}00"
                 dtend = f"{current_date.strftime('%Y%m%d')}T{end_h:02d}{end_m:02d}00"
                 
-                # Унікальний ідентифікатор події (важливо, щоб події не дублювались в календарі)
                 uid = f"{current_date.strftime('%Y%m%d')}-{start_h:02d}{start_m:02d}-{group_id}@{uuid.uuid4().hex[:8]}"
                 dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
                 
                 summary = f"{l['subject_name']} ({l['subject_type']})"
                 
-                # Збираємо опис (викладач + посилання)
                 desc_lines =[]
                 if l.get('teacher_name'): 
                     desc_lines.append(f"Викладач: {l['teacher_name']}")
                 if l.get('meeting_url'): 
                     desc_lines.append(f"Посилання: {l['meeting_url']}")
                 
-                # Замінюємо перенесення рядків на спеціальні символи для .ics (\n)
                 description = "\\n".join(desc_lines)
                 
                 cal_lines.extend([
@@ -139,6 +132,12 @@ class BotServices:
                     f"DTEND;TZID=Europe/Kyiv:{dtend}",
                     f"SUMMARY:{summary}",
                     f"DESCRIPTION:{description}",
+                    # ДОДАНО: Блок нагадування (будильник)
+                    "BEGIN:VALARM",
+                    "ACTION:DISPLAY",           # Тип нагадування (сповіщення на екрані)
+                    "DESCRIPTION:Нагадування",  # Текст внутрішнього системного повідомлення
+                    "TRIGGER:-PT10M",           # За 10 хвилин до початку події
+                    "END:VALARM",
                     "END:VEVENT"
                 ])
                 
