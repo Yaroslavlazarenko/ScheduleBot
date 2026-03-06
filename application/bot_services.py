@@ -137,8 +137,8 @@ class BotServices:
                     # ФІКС: Більш жорстке вказання 10 хвилин для всіх календарних клієнтів
                     "BEGIN:VALARM",
                     "ACTION:DISPLAY",
-                    f"DESCRIPTION:{summary}",
-                    "TRIGGER;RELATED=START:-PT10M",
+                    "DESCRIPTION:Reminder",
+                    "TRIGGER:-PT10M",
                     "END:VALARM",
                     "END:VEVENT"
                 ])
