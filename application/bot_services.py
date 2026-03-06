@@ -126,6 +126,13 @@ class BotServices:
                 
                 description = "\\n".join(desc_lines)
                 
+                reminder_dt = datetime(
+                    current_date.year, current_date.month, current_date.day,
+                    start_h, start_m, 0,
+                    tzinfo=timezone.utc
+                ) - timedelta(minutes=10)
+                trigger_abs = reminder_dt.strftime("%Y%m%dT%H%M%SZ")
+
                 cal_lines.extend([
                     "BEGIN:VEVENT",
                     f"UID:{uid}",
@@ -134,11 +141,17 @@ class BotServices:
                     f"DTEND;TZID=Europe/Kyiv:{dtend}",
                     f"SUMMARY:{summary}",
                     f"DESCRIPTION:{description}",
-                    # ФІКС: Більш жорстке вказання 10 хвилин для всіх календарних клієнтів
+                    # Относительное напоминание (для Apple/Outlook)
                     "BEGIN:VALARM",
                     "ACTION:DISPLAY",
-                    "DESCRIPTION:Reminder",
+                    "DESCRIPTION:Нагадування про пару",
                     "TRIGGER:-PT10M",
+                    "END:VALARM",
+                    # Абсолютное напоминание (для Google Calendar на Android)
+                    "BEGIN:VALARM",
+                    "ACTION:DISPLAY",
+                    "DESCRIPTION:Нагадування про пару",
+                    f"TRIGGER;VALUE=DATE-TIME:{trigger_abs}",
                     "END:VALARM",
                     "END:VEVENT"
                 ])
