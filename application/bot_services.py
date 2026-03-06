@@ -61,7 +61,7 @@ class BotServices:
             start_date = date.today()
             
         # 2. Знаходимо всі пари цієї групи, щоб визначити, скільки тижнів триває їхнє навчання
-        group_entries = [e for e in self.db.data.get("schedule_entries", []) if e.get("group_id") == group_id]
+        group_entries =[e for e in self.db.data.get("schedule_entries", []) if e.get("group_id") == group_id]
         
         # 3. Шукаємо максимальний тиждень (week_end). 
         max_week = 0
@@ -111,7 +111,9 @@ class BotServices:
                 dtstart = f"{current_date.strftime('%Y%m%d')}T{start_h:02d}{start_m:02d}00"
                 dtend = f"{current_date.strftime('%Y%m%d')}T{end_h:02d}{end_m:02d}00"
                 
-                uid = f"{current_date.strftime('%Y%m%d')}-{start_h:02d}{start_m:02d}-{group_id}@{uuid.uuid4().hex[:8]}"
+                # ФІКС: Робимо UID детермінованим (постійним). Без uuid! 
+                # Якщо розклад зміниться, календар оновить подію, а не створить дублікат.
+                uid = f"lesson-{group_id}-{current_date.strftime('%Y%m%d')}T{start_h:02d}{start_m:02d}@schedulebot"
                 dtstamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
                 
                 summary = f"{l['subject_name']} ({l['subject_type']})"
@@ -132,11 +134,11 @@ class BotServices:
                     f"DTEND;TZID=Europe/Kyiv:{dtend}",
                     f"SUMMARY:{summary}",
                     f"DESCRIPTION:{description}",
-                    # ДОДАНО: Блок нагадування (будильник)
+                    # ФІКС: Більш жорстке вказання 10 хвилин для всіх календарних клієнтів
                     "BEGIN:VALARM",
-                    "ACTION:DISPLAY",           # Тип нагадування (сповіщення на екрані)
-                    "DESCRIPTION:Нагадування",  # Текст внутрішнього системного повідомлення
-                    "TRIGGER:-PT10M",           # За 10 хвилин до початку події
+                    "ACTION:DISPLAY",
+                    f"DESCRIPTION:{summary}",
+                    "TRIGGER;RELATED=START:-PT10M",
                     "END:VALARM",
                     "END:VEVENT"
                 ])
