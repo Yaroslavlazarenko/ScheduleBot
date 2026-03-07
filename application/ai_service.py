@@ -3,8 +3,7 @@ import logging
 from datetime import datetime, date
 from openai import AsyncOpenAI
 
-# ДОДАНО ІМПОРТ DAYS_UA
-from application.bot_services import BotServices, DAYS_UA 
+from application.bot_services import BotServices, DAYS_UA
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -34,8 +33,6 @@ class AIService:
         # Формуємо контекст
         now = datetime.now()
         current_datetime_str = now.strftime("%Y-%m-%d %H:%M:%S")
-        
-        # ВИПРАВЛЕНО: використовуємо імпортований DAYS_UA замість self.services.DAYS_UA
         current_day_ua = DAYS_UA.get(now.isoweekday(), "")
 
         # Клонуємо базу і видаляємо приватні дані користувачів
@@ -43,6 +40,7 @@ class AIService:
         db_copy.pop("users", None) 
         db_json_str = json.dumps(db_copy, ensure_ascii=False)
 
+        # ДОДАНО ЖОРСТКІ ПРАВИЛА ФОРМАТУВАННЯ
         system_prompt = f"""Ти - корисний AI-асистент для студентів.
 Поточна дата та час: {current_datetime_str} ({current_day_ua}).
 Студент навчається в групі: {group_name} (ID: {group_id}).
@@ -50,16 +48,31 @@ class AIService:
 Ось база даних університету у форматі JSON (предмети, викладачі, розклад):
 {db_json_str}
 
-ІНСТРУКЦІЇ:
-1. Використовуй tool `get_schedule`, щоб отримати згенерований розклад на конкретний день, якщо студент про нього питає.
-2. ВАЖЛИВО: Використовуй ТІЛЬКИ HTML-теги, дозволені в Telegram (<b>, <i>, <u>, <s>, <code>, <pre>, <a href>). НЕ ВИКОРИСТОВУЙ Markdown (наприклад, **жирний** чи *курсив*).
-3. Відповідай українською мовою, привітно і чітко."""
+ІНСТРУКЦІЇ ФОРМАТУВАННЯ ТЕКСТУ (ДУЖЕ ВАЖЛИВО!):
+1. Telegram підтримує ТІЛЬКИ ці HTML-теги. Дозволено використовувати ТІЛЬКИ їх:
+   - <b>жирний текст</b>
+   - <i>курсив</i>
+   - <u>підкреслення</u>
+   - <s>закреслений текст</s>
+   - <code>код або моноширинний текст</code>
+   - <a href="URL">текст посилання</a>
+2. ЗАБОРОНЕНІ ТЕГИ (Telegram видасть помилку, якщо ти їх використаєш):
+   - КАТЕГОРИЧНО ЗАБОРОНЕНО: <br>, <br/>, </br>. Для нового рядка просто роби звичайний перенос (Enter / \n).
+   - КАТЕГОРИЧНО ЗАБОРОНЕНО: <p>, </p>, <div>, <span>. 
+   - КАТЕГОРИЧНО ЗАБОРОНЕНО: <h1>, <h2>, <h3>. Для заголовків використовуй <b>текст</b>.
+   - КАТЕГОРИЧНО ЗАБОРОНЕНО: <ul>, <ol>, <li>. Для списків просто використовуй символ "-" з нового рядка.
+3. ЗАБОРОНЕНИЙ MARKDOWN:
+   - Не використовуй **жирний** чи *курсив*. Замість цього використовуй <b>жирний</b> і <i>курсив</i>.
+
+ІНШІ ІНСТРУКЦІЇ:
+- Використовуй tool `get_schedule`, щоб отримати згенерований розклад на конкретний день, якщо студент про нього питає.
+- Відповідай українською мовою, привітно і чітко."""
 
         if telegram_id not in USER_HISTORY:
-            USER_HISTORY[telegram_id] =[]
+            USER_HISTORY[telegram_id] = []
 
         # Збираємо історію повідомлень
-        messages = [{"role": "system", "content": system_prompt}]
+        messages =[{"role": "system", "content": system_prompt}]
         messages.extend(USER_HISTORY[telegram_id])
         messages.append({"role": "user", "content": text})
 
