@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
 
     telegram_bot_token: str
-    # Всі змінні, пов'язані з API, успішно видалені!
+    api_key: str
+    base_url: str
+    model_name: str
 
 settings = Settings() # type: ignore

@@ -6,6 +6,7 @@ from .teacher import teacher_router
 from .settings import settings_router
 from .subject import subject_router
 from .admin import admin_router
+from .ai_chat import ai_router
 
 __all__ = [
     'common_router',
@@ -15,5 +16,6 @@ __all__ = [
     'teacher_router',
     'settings_router',
     'subject_router',
-    'admin_router'
+    'admin_router',
+    'ai_router'
 ]

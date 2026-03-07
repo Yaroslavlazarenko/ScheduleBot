@@ -53,6 +53,9 @@ async def main():
     dispatcher.include_router(handlers.subject_router)
     dispatcher.include_router(handlers.settings_router)
     dispatcher.include_router(handlers.admin_router)
+    
+    # AI Роутер має бути останнім, щоб ловити довільний текст
+    dispatcher.include_router(handlers.ai_router) 
 
     logger.info("Бот успішно запущений та готовий до роботи!")
     
