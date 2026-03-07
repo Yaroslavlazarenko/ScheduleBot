@@ -20,12 +20,6 @@ async def handle_make_coffee(message: Message):
         "Ось ваша гаряча кава! ☕️🍩\n"
         "Бажаю продуктивного дня та енергії для навчання!"
     )
-    
-    # Видаляємо повідомлення юзера, щоб не засмічувати чат
-    try:
-        await message.delete()
-    except TelegramBadRequest:
-        pass
 
 @common_router.message(CommandStart())
 async def handle_start(
