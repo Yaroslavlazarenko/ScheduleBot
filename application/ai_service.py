@@ -21,10 +21,11 @@ class AIService:
         self.model = settings.model_name
         self.max_history_messages = 8
 
-    async def process_user_message(self, telegram_id: int, text: str) -> str:
+    # ТЕПЕР МЕТОД ПОВЕРТАЄ ТАКОЖ І UI_ACTION (сигнал для надсилання меню)
+    async def process_user_message(self, telegram_id: int, text: str) -> tuple[str, dict | None]:
         user = self.services.get_user(telegram_id)
         if not user:
-            return "Будь ласка, зареєструйтесь за допомогою команди /start перед спілкуванням."
+            return "Будь ласка, зареєструйтесь за допомогою команди /start перед спілкуванням.", None
 
         group_id = user["group_id"]
         group = self.services.db.get_group(group_id)
@@ -40,7 +41,6 @@ class AIService:
         db_copy.pop("users", None) 
         db_json_str = json.dumps(db_copy, ensure_ascii=False)
 
-        # ДОДАНО ЖОРСТКІ ПРАВИЛА ФОРМАТУВАННЯ
         system_prompt = f"""Ти - корисний AI-асистент для студентів.
 Поточна дата та час: {current_datetime_str} ({current_day_ua}).
 Студент навчається в групі: {group_name} (ID: {group_id}).
@@ -56,27 +56,26 @@ class AIService:
    - <s>закреслений текст</s>
    - <code>код або моноширинний текст</code>
    - <a href="URL">текст посилання</a>
-2. ЗАБОРОНЕНІ ТЕГИ (Telegram видасть помилку, якщо ти їх використаєш):
+2. ЗАБОРОНЕНІ ТЕГИ:
    - КАТЕГОРИЧНО ЗАБОРОНЕНО: <br>, <br/>, </br>. Для нового рядка просто роби звичайний перенос (Enter / \n).
-   - КАТЕГОРИЧНО ЗАБОРОНЕНО: <p>, </p>, <div>, <span>. 
-   - КАТЕГОРИЧНО ЗАБОРОНЕНО: <h1>, <h2>, <h3>. Для заголовків використовуй <b>текст</b>.
-   - КАТЕГОРИЧНО ЗАБОРОНЕНО: <ul>, <ol>, <li>. Для списків просто використовуй символ "-" з нового рядка.
+   - КАТЕГОРИЧНО ЗАБОРОНЕНО: <p>, </p>, <div>, <span>, <h1>, <h2>, <h3>, <ul>, <ol>, <li>.
 3. ЗАБОРОНЕНИЙ MARKDOWN:
-   - Не використовуй **жирний** чи *курсив*. Замість цього використовуй <b>жирний</b> і <i>курсив</i>.
+   - Не використовуй **жирний** чи *курсив*. Замість цього використовуй <b> і <i>.
 
-ІНШІ ІНСТРУКЦІЇ:
-- Використовуй tool `get_schedule`, щоб отримати згенерований розклад на конкретний день, якщо студент про нього питає.
-- Відповідай українською мовою, привітно і чітко."""
+ІНСТРУКЦІЯ ЩОДО РОЗКЛАДУ:
+- Використовуй tool `get_schedule`, щоб отримати розклад на конкретний день.
+- ВАЖЛИВО: Якщо ти викликаєш tool `get_schedule`, бот АВТОМАТИЧНО надішле користувачу красиве інтерактивне меню з розкладом (з кнопками).
+- ТОМУ у своїй текстовій відповіді НЕ ПЕРЕРАХОВУЙ предмети з розкладу! Просто скажи щось на кшталт "Ось твій розклад на [дата]:" або побажай продуктивного дня.
+
+Відповідай українською мовою, привітно і чітко."""
 
         if telegram_id not in USER_HISTORY:
             USER_HISTORY[telegram_id] = []
 
-        # Збираємо історію повідомлень
         messages =[{"role": "system", "content": system_prompt}]
         messages.extend(USER_HISTORY[telegram_id])
         messages.append({"role": "user", "content": text})
 
-        # Описуємо тул отримання розкладу
         tools =[{
             "type": "function",
             "function": {
@@ -95,8 +94,9 @@ class AIService:
             }
         }]
 
+        ui_action = None # Змінна для збереження команди на відправку меню
+
         try:
-            # Перший виклик моделі
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
@@ -104,10 +104,8 @@ class AIService:
                 tool_choice="auto"
             )
             response_message = response.choices[0].message
-
             final_answer = ""
 
-            # Якщо модель вирішила викликати tool
             if response_message.tool_calls:
                 messages.append(response_message)
                 
@@ -119,6 +117,8 @@ class AIService:
                         try:
                             target_d = date.fromisoformat(target_date_str)
                             schedule_text = self.services.format_daily_schedule_by_group(group_id, target_d)
+                            # ЗАПИСУЄМО ДІЮ: бот має надіслати меню розкладу на цю дату
+                            ui_action = {"type": "schedule", "date": target_d}
                         except Exception as e:
                             schedule_text = f"Помилка формату дати: {e}"
 
@@ -129,7 +129,6 @@ class AIService:
                             "content": schedule_text
                         })
 
-                # Робимо другий запит з результатом виконання функції
                 second_response = await self.client.chat.completions.create(
                     model=self.model,
                     messages=messages
@@ -138,13 +137,12 @@ class AIService:
             else:
                 final_answer = response_message.content
 
-            # Оновлюємо історію
             USER_HISTORY[telegram_id].append({"role": "user", "content": text})
             USER_HISTORY[telegram_id].append({"role": "assistant", "content": final_answer})
             USER_HISTORY[telegram_id] = USER_HISTORY[telegram_id][-self.max_history_messages:]
 
-            return final_answer
+            return final_answer, ui_action
 
         except Exception as e:
             logger.error(f"Помилка AI: {e}")
-            return "Вибачте, сталася помилка при зверненні до нейромережі. Спробуйте пізніше."
+            return "Вибачте, сталася помилка при зверненні до нейромережі. Спробуйте пізніше.", None
