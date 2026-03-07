@@ -3,13 +3,13 @@ import logging
 from datetime import datetime, date
 from openai import AsyncOpenAI
 
-from application.bot_services import BotServices
+# ДОДАНО ІМПОРТ DAYS_UA
+from application.bot_services import BotServices, DAYS_UA 
 from config import settings
 
 logger = logging.getLogger(__name__)
 
 # Глобальний словник для зберігання історії в пам'яті (in-memory)
-# Формат: {telegram_id: [{"role": "user", "content": "..."}, ...]}
 USER_HISTORY = {}
 
 class AIService:
@@ -20,8 +20,6 @@ class AIService:
             base_url=settings.base_url
         )
         self.model = settings.model_name
-        
-        # 3-4 повідомлення від користувача і стільки ж відповідей бота = 6-8 реплік
         self.max_history_messages = 8
 
     async def process_user_message(self, telegram_id: int, text: str) -> str:
@@ -36,7 +34,9 @@ class AIService:
         # Формуємо контекст
         now = datetime.now()
         current_datetime_str = now.strftime("%Y-%m-%d %H:%M:%S")
-        current_day_ua = self.services.DAYS_UA.get(now.isoweekday(), "")
+        
+        # ВИПРАВЛЕНО: використовуємо імпортований DAYS_UA замість self.services.DAYS_UA
+        current_day_ua = DAYS_UA.get(now.isoweekday(), "")
 
         # Клонуємо базу і видаляємо приватні дані користувачів
         db_copy = dict(self.services.db.data)
@@ -59,7 +59,7 @@ class AIService:
             USER_HISTORY[telegram_id] =[]
 
         # Збираємо історію повідомлень
-        messages =[{"role": "system", "content": system_prompt}]
+        messages = [{"role": "system", "content": system_prompt}]
         messages.extend(USER_HISTORY[telegram_id])
         messages.append({"role": "user", "content": text})
 
@@ -125,7 +125,7 @@ class AIService:
             else:
                 final_answer = response_message.content
 
-            # Оновлюємо історію і залишаємо лише N останніх реплік
+            # Оновлюємо історію
             USER_HISTORY[telegram_id].append({"role": "user", "content": text})
             USER_HISTORY[telegram_id].append({"role": "assistant", "content": final_answer})
             USER_HISTORY[telegram_id] = USER_HISTORY[telegram_id][-self.max_history_messages:]
