@@ -37,10 +37,10 @@ class ScheduleCallbackFactory(CallbackData, prefix="schedule"):
 # ==========================================
 
 def create_main_keyboard(is_admin: bool = False) -> ReplyKeyboardMarkup:
-    kb = [[KeyboardButton(text="🗓 Отримати розклад"), KeyboardButton(text="🗓 Розклад на тиждень")],
-          [KeyboardButton(text="👨‍🏫 Вчителі"), KeyboardButton(text="📚 Предмети")],
-          [KeyboardButton(text="⚙️ Налаштування")]]
-    if is_admin: kb.append([KeyboardButton(text="👑 Адмін-панель")])
+    kb = [[KeyboardButton(text="🗓 Отримати розклад"), KeyboardButton(text="🗓 Розклад на тиждень")],[KeyboardButton(text="👨‍🏫 Вчителі"), KeyboardButton(text="📚 Предмети")],[KeyboardButton(text="⚙️ Налаштування"), KeyboardButton(text="☕ Зробити каву")]]
+    
+    if is_admin: 
+        kb.append([KeyboardButton(text="👑 Адмін-панель")])
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 def create_settings_keyboard() -> InlineKeyboardMarkup:

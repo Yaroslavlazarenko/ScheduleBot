@@ -1,6 +1,5 @@
 import logging
-
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
@@ -14,6 +13,19 @@ from bot.keyboards import create_groups_keyboard, create_main_keyboard
 common_router = Router(name="common_router")
 logger = logging.getLogger(__name__)
 
+@common_router.message(F.text == "☕ Зробити join каву" or F.text == "☕ Зробити каву")
+async def handle_make_coffee(message: Message):
+    """Жартівлива команда для видачі кави."""
+    await message.answer(
+        "Ось ваша гаряча кава! ☕️🍩\n"
+        "Бажаю продуктивного дня та енергії для навчання!"
+    )
+    
+    # Видаляємо повідомлення юзера, щоб не засмічувати чат (опціонально)
+    try:
+        await message.delete()
+    except TelegramBadRequest:
+        pass
 
 @common_router.message(CommandStart())
 async def handle_start(
