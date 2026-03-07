@@ -21,7 +21,6 @@ class AIService:
         self.model = settings.model_name
         self.max_history_messages = 8
 
-    # ТЕПЕР МЕТОД ПОВЕРТАЄ ТАКОЖ І UI_ACTION (сигнал для надсилання меню)
     async def process_user_message(self, telegram_id: int, text: str) -> tuple[str, dict | None]:
         user = self.services.get_user(telegram_id)
         if not user:
@@ -94,7 +93,7 @@ class AIService:
             }
         }]
 
-        ui_action = None # Змінна для збереження команди на відправку меню
+        ui_action = None 
 
         try:
             response = await self.client.chat.completions.create(
@@ -104,7 +103,7 @@ class AIService:
                 tool_choice="auto"
             )
             response_message = response.choices[0].message
-            final_answer = ""
+            raw_content = None
 
             if response_message.tool_calls:
                 messages.append(response_message)
@@ -117,7 +116,6 @@ class AIService:
                         try:
                             target_d = date.fromisoformat(target_date_str)
                             schedule_text = self.services.format_daily_schedule_by_group(group_id, target_d)
-                            # ЗАПИСУЄМО ДІЮ: бот має надіслати меню розкладу на цю дату
                             ui_action = {"type": "schedule", "date": target_d}
                         except Exception as e:
                             schedule_text = f"Помилка формату дати: {e}"
@@ -133,9 +131,26 @@ class AIService:
                     model=self.model,
                     messages=messages
                 )
-                final_answer = second_response.choices[0].message.content
+                raw_content = second_response.choices[0].message.content
             else:
-                final_answer = response_message.content
+                raw_content = response_message.content
+
+            # === ВИПРАВЛЕННЯ: Гарантовано перетворюємо відповідь (raw_content) на рядок ===
+            if isinstance(raw_content, list):
+                parts =[]
+                for p in raw_content:
+                    if hasattr(p, 'text'):
+                        parts.append(p.text)
+                    elif isinstance(p, dict) and 'text' in p:
+                        parts.append(p['text'])
+                    else:
+                        parts.append(str(p))
+                final_answer = "".join(parts)
+            elif raw_content is None:
+                final_answer = ""
+            else:
+                final_answer = str(raw_content)
+            # ==============================================================================
 
             USER_HISTORY[telegram_id].append({"role": "user", "content": text})
             USER_HISTORY[telegram_id].append({"role": "assistant", "content": final_answer})

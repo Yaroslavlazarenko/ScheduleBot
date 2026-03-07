@@ -16,8 +16,9 @@ from bot.keyboards import (
     create_broadcast_confirmation_keyboard,
     create_cancel_fsm_keyboard, 
     BroadcastCallbackFactory,
-    create_admin_groups_keyboard,  # <-- Додано
-    AdminCalendarGroupFactory      # <-- Додано
+    create_admin_groups_keyboard,
+    AdminCalendarGroupFactory,
+    create_main_keyboard  # <--- ДОДАЙТЕ ЦЕЙ РЯДОК
 )
 
 logger = logging.getLogger(__name__)
@@ -213,7 +214,7 @@ async def handle_broadcast_confirmation(
         message_text = data.get("message_text")
         
         if not message_text:
-            await query.message.answer("❌ Помилка: текст повідомлення не знайдено. Спробуйте знову.")
+            await query.message.answer("❌ Помилка: текст повідомлення не знайдено.")
             await state.clear()
             await query.answer()
             return
@@ -224,27 +225,30 @@ async def handle_broadcast_confirmation(
         success_count = 0
         failure_count = 0
 
-        # Цикл відправки (локально перебираємо всіх юзерів)
+        # Цикл відправки
         for user in users:
             try:
+                # === ДОДАНО: Генеруємо клавіатуру для кожного юзера (з урахуванням чи він адмін) ===
+                is_admin = user.get("is_admin", False)
+                keyboard = create_main_keyboard(is_admin=is_admin)
+
                 await bot.send_message(
                     chat_id=user["telegram_id"],
                     text=message_text,
-                    parse_mode="HTML"
+                    parse_mode="HTML",
+                    reply_markup=keyboard  # <--- ПРИКРІПЛЮЄМО КЛАВІАТУРУ
                 )
                 success_count += 1
             except Exception as e:
                 logger.warning(f"Failed to send broadcast to user {user['telegram_id']}: {e}")
                 failure_count += 1
             
-            # Затримка 0.05 секунди (20 повідомлень на секунду), 
-            # щоб Telegram не заблокував бота за флуд (Flood Control)
             await asyncio.sleep(0.05) 
 
         report_text = (
             f"✅ Розсилку успішно завершено!\n\n"
             f"🟢 Надіслано успішно: {success_count}\n"
-            f"🔴 Помилок (юзер заблокував бота тощо): {failure_count}"
+            f"🔴 Помилок (юзер заблокував бота): {failure_count}"
         )
         await query.message.answer(report_text)
         await state.clear()
