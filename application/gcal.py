@@ -11,26 +11,38 @@ class GoogleCalendarAPI:
         self.creds_path = creds_path
         self.scopes = ['https://www.googleapis.com/auth/calendar']
 
-    def _create_events_sync(self, group_name: str, events_list: list) -> str | None:
+    def _create_events_sync(self, group_name: str, events_list: list, existing_calendar_id: str | None = None) -> str | None:
         try:
-            # Авторизація через Service Account
-            creds = service_account.Credentials.from_service_account_file(
-                self.creds_path, scopes=self.scopes)
+            creds = service_account.Credentials.from_service_account_file(self.creds_path, scopes=self.scopes)
             service = build('calendar', 'v3', credentials=creds, cache_discovery=False)
             
-            # 1. Створюємо новий календар
-            calendar = {
-                'summary': f'🗓 Розклад: {group_name}',
-                'timeZone': 'Europe/Kyiv'
-            }
-            created_calendar = service.calendars().insert(body=calendar).execute()
-            calendar_id = created_calendar['id']
+            calendar_id = existing_calendar_id
             
-            # 2. Робимо календар публічним (щоб студенти могли зайти за посиланням)
-            rule = {'scope': {'type': 'default'}, 'role': 'reader'}
-            service.acl().insert(calendarId=calendar_id, body=rule).execute()
+            # 1. Якщо календар вже існує, очищаємо його від старих пар
+            if calendar_id:
+                try:
+                    page_token = None
+                    while True:
+                        events = service.events().list(calendarId=calendar_id, pageToken=page_token).execute()
+                        for event in events.get('items',[]):
+                            service.events().delete(calendarId=calendar_id, eventId=event['id']).execute()
+                        page_token = events.get('nextPageToken')
+                        if not page_token:
+                            break
+                except Exception as e:
+                    logger.warning(f"Не вдалося очистити старий календар, створюємо новий: {e}")
+                    calendar_id = None
+            
+            # 2. Якщо календаря не було, створюємо новий
+            if not calendar_id:
+                calendar = {'summary': f'🗓 Розклад: {group_name}', 'timeZone': 'Europe/Kyiv'}
+                created_calendar = service.calendars().insert(body=calendar).execute()
+                calendar_id = created_calendar['id']
+                
+                rule = {'scope': {'type': 'default'}, 'role': 'reader'}
+                service.acl().insert(calendarId=calendar_id, body=rule).execute()
 
-            # 3. Додаємо всі події по одній (з паузою, щоб Google не заблокував за спам запитами)
+            # 3. Додаємо нові пари (оновлений розклад)
             for ev in events_list:
                 event_body = {
                     'summary': ev['summary'],
@@ -38,10 +50,15 @@ class GoogleCalendarAPI:
                     'start': {'dateTime': ev['start_dt'].isoformat(), 'timeZone': 'Europe/Kyiv'},
                     'end': {'dateTime': ev['end_dt'].isoformat(), 'timeZone': 'Europe/Kyiv'},
                     'reminders': {
-                        'useDefault': False, # Вимикаємо стандартні 30 хвилин
-                        'overrides': [{'method': 'popup', 'minutes': 10}], # Жорстко ставимо 10 хвилин
+                        'useDefault': False,
+                        'overrides':[{'method': 'popup', 'minutes': 10}],
                     },
                 }
+                
+                # Якщо є посилання на Zoom/Meet, додаємо його в поле Location
+                if ev.get('location'):
+                    event_body['location'] = ev['location']
+
                 service.events().insert(calendarId=calendar_id, body=event_body).execute()
                 time.sleep(0.2) # Безпечна затримка між запитами API
             
@@ -50,6 +67,5 @@ class GoogleCalendarAPI:
             logger.error(f"Помилка Google Calendar API: {e}")
             return None
 
-    async def create_calendar_for_group(self, group_name: str, events_list: list) -> str | None:
-        """Асинхронна обгортка для створення календаря."""
-        return await asyncio.to_thread(self._create_events_sync, group_name, events_list)
+    async def create_calendar_for_group(self, group_name: str, events_list: list, existing_calendar_id: str | None = None) -> str | None:
+        return await asyncio.to_thread(self._create_events_sync, group_name, events_list, existing_calendar_id)

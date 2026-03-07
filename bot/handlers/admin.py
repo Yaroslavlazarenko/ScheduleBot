@@ -131,7 +131,6 @@ async def handle_generate_calendar_request(query: CallbackQuery, state: FSMConte
 
 @admin_router.callback_query(AdminFSM.choosing_group_for_calendar, AdminCalendarGroupFactory.filter(), AdminFilter())
 async def handle_calendar_group_selection(query: CallbackQuery, callback_data: AdminCalendarGroupFactory, state: FSMContext, services: BotServices):
-    """Створює календар через Google API та відправляє посилання-підписку."""
     if not isinstance(query.message, Message): 
         return
     
@@ -146,26 +145,33 @@ async def handle_calendar_group_selection(query: CallbackQuery, callback_data: A
     group = services.db.get_group(callback_data.group_id)
     group_name = group["name"] if group else "Unknown"
     
-    # Оскільки запитів багато (по 0.2с на пару), це може зайняти ~20-40 секунд
-    await query.message.edit_text(f"🌐 Підключаюсь до Google. Створюю {len(events_list)} пар...\nЦе може зайняти до 1 хвилини, будь ласка, зачекайте.")
+    # ПЕРЕВІРЯЄМО, чи є вже створений календар для цієї групи
+    existing_calendar_id = group.get("calendar_id") if group else None
+    action_text = "Оновлюю існуючий розклад" if existing_calendar_id else "Створюю новий календар"
+    
+    await query.message.edit_text(f"🌐 Підключаюсь до Google API. {action_text} ({len(events_list)} пар)...\nЦе може зайняти 1-2 хвилини, будь ласка, зачекайте.")
     
     from application.gcal import GoogleCalendarAPI
     gcal = GoogleCalendarAPI()
     
-    calendar_id = await gcal.create_calendar_for_group(group_name, events_list)
+    calendar_id = await gcal.create_calendar_for_group(group_name, events_list, existing_calendar_id)
     
     if not calendar_id:
         await query.message.edit_text("❌ Помилка роботи з Google API. Перевірте файл credentials.json.")
         await state.clear()
         return
         
-    # Формуємо URL для прямої підписки
+    # Якщо календар новий - зберігаємо його ID у нашу БД
+    if calendar_id != existing_calendar_id:
+        await services.db.save_calendar_id(callback_data.group_id, calendar_id)
+        
     subscribe_url = f"https://calendar.google.com/calendar/r?cid={calendar_id}"
+    status_msg = "оновлено (посилання не змінилося)" if existing_calendar_id else "створено"
     
     await query.message.edit_text(
-        f"✅ <b>Google Календар для групи {group_name} успішно створено!</b>\n\n"
-        f"🔗 <b>Посилання для студентів:</b>\n{subscribe_url}\n\n"
-        f"<i>Студентам достатньо просто натиснути на це посилання, щоб розклад автоматично підтягнувся у їхній Google Календар з гарантованим нагадуванням за 10 хвилин.</i>",
+        f"✅ <b>Google Календар для групи {group_name} успішно {status_msg}!</b>\n\n"
+        f"🔗 <b>Посилання для підписки:</b>\n{subscribe_url}\n\n"
+        f"<i>Студентам достатньо натиснути один раз. У майбутньому всі зміни в розкладі синхронізуватимуться автоматично!</i>",
         disable_web_page_preview=True
     )
     

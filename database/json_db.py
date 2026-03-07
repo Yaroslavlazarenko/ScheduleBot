@@ -97,17 +97,30 @@ class JsonDatabase:
         return sorted(result, key=lambda x: x["period_number"])
     
     async def update_static_data(self, new_data: dict):
-        """Оновлює розклад та налаштування, але зберігає існуючих користувачів."""
+        """Оновлює розклад, зберігаючи користувачів та ID створених календарів."""
         async with self._lock:
-            # Зберігаємо старих юзерів
-            users = self.data.get("users", [])
+            users = self.data.get("users",[])
             
-            # Замінюємо все інше новими даними
+            # Запам'ятовуємо старі ID календарів для груп
+            old_calendars = {g["group_id"]: g.get("calendar_id") for g in self.data.get("groups",[]) if g.get("calendar_id")}
+            
             self.data = new_data
-            
-            # Повертаємо юзерів на місце
             self.data["users"] = users
             
-            # Зберігаємо у файл
+            # Повертаємо ID календарів у новий розклад
+            for g in self.data.get("groups", []):
+                if g["group_id"] in old_calendars:
+                    g["calendar_id"] = old_calendars[g["group_id"]]
+            
+            async with aiofiles.open(self.file_path, mode='w', encoding='utf-8') as f:
+                await f.write(json.dumps(self.data, indent=2, ensure_ascii=False))
+
+    async def save_calendar_id(self, group_id: int, calendar_id: str):
+        """Зберігає ID Google Календаря для конкретної групи."""
+        async with self._lock:
+            for g in self.data.get("groups", []):
+                if g["group_id"] == group_id:
+                    g["calendar_id"] = calendar_id
+                    break
             async with aiofiles.open(self.file_path, mode='w', encoding='utf-8') as f:
                 await f.write(json.dumps(self.data, indent=2, ensure_ascii=False))

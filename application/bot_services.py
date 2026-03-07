@@ -91,15 +91,22 @@ class BotServices:
                 summary = f"{l['subject_name']} ({l['subject_type']})"
                 
                 desc_lines =[]
-                if l.get('teacher_name'): desc_lines.append(f"👨‍🏫 Викладач: {l['teacher_name']}")
-                if l.get('meeting_url'): desc_lines.append(f"🔗 Посилання: <a href='{l['meeting_url']}'>{l['meeting_url']}</a>")
-                description = "<br>".join(desc_lines) # Google API розуміє HTML-теги в описі
+                if l.get('teacher_name'): 
+                    desc_lines.append(f"👨‍🏫 Викладач: {l['teacher_name']}")
+                
+                # Залишаємо посилання і в описі (як резерв для ПК версії)
+                meeting_url = l.get('meeting_url')
+                if meeting_url: 
+                    desc_lines.append(f"🔗 Посилання: <a href='{meeting_url}'>{meeting_url}</a>")
+                    
+                description = "<br>".join(desc_lines)
 
                 events.append({
                     "summary": summary,
                     "description": description,
                     "start_dt": start_dt,
-                    "end_dt": end_dt
+                    "end_dt": end_dt,
+                    "location": meeting_url  # <-- ДОДАНО: передаємо посилання як локацію
                 })
                 
             current_date += timedelta(days=1)
