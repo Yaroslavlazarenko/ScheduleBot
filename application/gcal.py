@@ -51,15 +51,30 @@ class GoogleCalendarAPI:
                     'end': {'dateTime': ev['end_dt'].isoformat(), 'timeZone': 'Europe/Kyiv'}
                 }
                 
-                # Додаємо посилання на зустріч
-                if ev.get('location'):
-                    event_body['location'] = ev['location']
-                    
-                # Додаємо правило повторення (Щотижня / Раз на 2 тижні)
+                # Додаємо правило повторення
                 if ev.get('recurrence'):
                     event_body['recurrence'] = ev['recurrence']
 
-                service.events().insert(calendarId=calendar_id, body=event_body).execute()
+                # Додаємо посилання як справжню ВІДЕОКОНФЕРЕНЦІЮ
+                meeting_url = ev.get('location')
+                if meeting_url:
+                    event_body['location'] = meeting_url # Залишаємо як резерв
+                    event_body['conferenceData'] = {
+                        'entryPoints':[{
+                            'entryPointType': 'video',
+                            'uri': meeting_url,
+                            'label': 'Приєднатися до пари'
+                        }]
+                    }
+
+                # ОБОВ'ЯЗКОВО передаємо параметр conferenceDataVersion=1, 
+                # інакше Google проігнорує відеоконференцію
+                service.events().insert(
+                    calendarId=calendar_id, 
+                    body=event_body,
+                    conferenceDataVersion=1  # <-- Це активує гарну кнопку!
+                ).execute()
+                
                 time.sleep(0.2) # Безпечна затримка між запитами API
             
             return calendar_id
