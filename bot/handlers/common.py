@@ -13,7 +13,7 @@ from bot.keyboards import create_groups_keyboard, create_main_keyboard
 common_router = Router(name="common_router")
 logger = logging.getLogger(__name__)
 
-@common_router.message(F.text == "☕ Зробити join каву" or F.text == "☕ Зробити каву")
+@common_router.message(F.text.in_({"☕ Зробити каву", "☕️ Зробити каву"}))
 async def handle_make_coffee(message: Message):
     """Жартівлива команда для видачі кави."""
     await message.answer(
@@ -21,7 +21,7 @@ async def handle_make_coffee(message: Message):
         "Бажаю продуктивного дня та енергії для навчання!"
     )
     
-    # Видаляємо повідомлення юзера, щоб не засмічувати чат (опціонально)
+    # Видаляємо повідомлення юзера, щоб не засмічувати чат
     try:
         await message.delete()
     except TelegramBadRequest:
