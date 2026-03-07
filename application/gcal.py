@@ -54,25 +54,14 @@ class GoogleCalendarAPI:
                 # Додаємо правило повторення
                 if ev.get('recurrence'):
                     event_body['recurrence'] = ev['recurrence']
+                    
+                # --- НОВЕ: Додаємо колір ---
+                if ev.get('colorId'):
+                    event_body['colorId'] = ev['colorId']
 
-                # Додаємо посилання як справжню ВІДЕОКОНФЕРЕНЦІЮ
-                meeting_url = ev.get('location')
-                if meeting_url:
-                    event_body['location'] = meeting_url # Залишаємо як резерв
-                    event_body['conferenceData'] = {
-                        'entryPoints':[{
-                            'entryPointType': 'video',
-                            'uri': meeting_url,
-                            'label': 'Приєднатися до пари'
-                        }]
-                    }
-
-                # ОБОВ'ЯЗКОВО передаємо параметр conferenceDataVersion=1, 
-                # інакше Google проігнорує відеоконференцію
                 service.events().insert(
                     calendarId=calendar_id, 
-                    body=event_body,
-                    conferenceDataVersion=1  # <-- Це активує гарну кнопку!
+                    body=event_body
                 ).execute()
                 
                 time.sleep(0.2) # Безпечна затримка між запитами API

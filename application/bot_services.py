@@ -115,29 +115,39 @@ class BotServices:
             except ValueError:
                 continue 
             
-            # Створюємо дату початку та кінця першої події
             start_dt = datetime.combine(first_occurrence_date, time(start_h, start_m))
             end_dt = datetime.combine(first_occurrence_date, time(end_h, end_m))
             
             summary = f"{subject['full_name']} ({entry['class_type']})"
             
+            # --- НОВЕ: Формуємо розширений опис з усіма контактами ---
             desc_lines =[]
             if teacher: 
-                desc_lines.append(f"👨‍🏫 Викладач: {teacher['title']} {teacher['name']}")
-                
+                desc_lines.append(f"👨‍🏫 <b>Викладач:</b> {teacher['title']} {teacher['name']}")
+                if teacher.get('contacts'):
+                    desc_lines.append(f"📞 <b>Контакти:</b> {teacher['contacts']}")
+                if teacher.get('photo_url'):
+                    desc_lines.append(f"🖼 <b>Фото / Профіль:</b> <a href='{teacher['photo_url']}'>Відкрити</a>")
+                    
+            desc_lines.append("") # Порожній рядок для відступу
+            # --------------------------------------------------------
+
             meeting_url = entry.get('meeting_url')
             if meeting_url: 
-                desc_lines.append(f"🔗 Посилання: <a href='{meeting_url}'>{meeting_url}</a>")
+                desc_lines.append(f"🔗 <b>Посилання на пару:</b> <a href='{meeting_url}'>{meeting_url}</a>")
                 
             description = "<br>".join(desc_lines)
+
+            # --- НОВЕ: Визначаємо колір (10 - зелений Basil, 9 - синій Blueberry) ---
+            event_color = "10" if entry['class_type'].lower() == "лекція" else "9"
 
             events.append({
                 "summary": summary,
                 "description": description,
                 "start_dt": start_dt,
                 "end_dt": end_dt,
-                "location": meeting_url,
-                "recurrence": [rrule]  # <-- ДОДАНО правило повторення
+                "recurrence": [rrule],
+                "colorId": event_color # <-- Передаємо колір
             })
             
         return events
