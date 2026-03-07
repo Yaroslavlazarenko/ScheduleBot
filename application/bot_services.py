@@ -48,11 +48,12 @@ class BotServices:
             await self.db.save_user(telegram_id, user.get("username", ""), user.get("group_id", 0), region_id, region["timezone"], user.get("is_admin", False))
 
     def get_group_events_data(self, group_id: int) -> list:
-        """Збирає список пар у форматі словників для Google Calendar API."""
+        """Збирає список унікальних пар для Google Calendar API як події, що повторюються (RRULE)."""
         group = self.db.get_group(group_id)
         if not group:
             return[]
 
+        # 1. Беремо старт семестру
         start_date_str = self.db.data.get("metadata", {}).get("semester_start", "2024-09-01")
         try:
             start_date = date.fromisoformat(start_date_str)
@@ -60,56 +61,84 @@ class BotServices:
             start_date = date.today()
             
         group_entries =[e for e in self.db.data.get("schedule_entries", []) if e.get("group_id") == group_id]
-        max_week = max([e.get("week_end", 0) for e in group_entries if e.get("week_end", 0) != 99] or [0])
-        if max_week == 0:
-            max_week = self.db.data.get("metadata", {}).get("total_weeks", 20)
+        global_total_weeks = self.db.data.get("metadata", {}).get("total_weeks", 20)
         
-        end_date = start_date + timedelta(weeks=max_week)
-        current_date = start_date
         events =[]
 
-        while current_date <= end_date:
-            day_of_week = current_date.isoweekday()
-            if day_of_week in [6, 7]:
-                current_date += timedelta(days=1)
-                continue
-
-            week_number, parity = self._get_week_parity(current_date)
-            lessons = self.db.get_schedule(group_id, day_of_week, parity, week_number)
+        for entry in group_entries:
+            day_of_week = entry.get("day_of_week")
+            parity = entry.get("week_parity", "всі")
+            week_start = entry.get("week_start", 1)
+            week_end = entry.get("week_end", global_total_weeks)
             
-            for l in lessons:
-                try:
-                    start_h, start_m = map(int, l["start_time"].split(":"))
-                    end_h, end_m = map(int, l["end_time"].split(":"))
-                except ValueError:
-                    continue 
-                
-                # Формуємо об'єкти datetime
-                start_dt = datetime.combine(current_date, time(start_h, start_m))
-                end_dt = datetime.combine(current_date, time(end_h, end_m))
-                
-                summary = f"{l['subject_name']} ({l['subject_type']})"
-                
-                desc_lines =[]
-                if l.get('teacher_name'): 
-                    desc_lines.append(f"👨‍🏫 Викладач: {l['teacher_name']}")
-                
-                # Залишаємо посилання і в описі (як резерв для ПК версії)
-                meeting_url = l.get('meeting_url')
-                if meeting_url: 
-                    desc_lines.append(f"🔗 Посилання: <a href='{meeting_url}'>{meeting_url}</a>")
-                    
-                description = "<br>".join(desc_lines)
+            if week_end == 99:
+                week_end = global_total_weeks
 
-                events.append({
-                    "summary": summary,
-                    "description": description,
-                    "start_dt": start_dt,
-                    "end_dt": end_dt,
-                    "location": meeting_url  # <-- ДОДАНО: передаємо посилання як локацію
-                })
+            # 2. Шукаємо найпершу дату, коли відбудеться ця конкретна пара
+            search_start_date = start_date + timedelta(days=(week_start - 1) * 7)
+            first_occurrence_date = None
+            
+            # Перевіряємо наступні 14 днів, щоб знайти потрібний день тижня та правильну парність
+            for i in range(14):
+                candidate = search_start_date + timedelta(days=i)
+                if candidate.isoweekday() == day_of_week:
+                    _, cand_parity = self._get_week_parity(candidate)
+                    if parity == "всі" or cand_parity == parity:
+                        first_occurrence_date = candidate
+                        break
+                        
+            if not first_occurrence_date:
+                continue # Якщо не знайшли (що малоймовірно), пропускаємо
+
+            # 3. Формуємо правило повторення (RRULE)
+            # Визначаємо крайній термін - до кінця тижня `week_end`
+            end_date_limit = start_date + timedelta(days=week_end * 7)
+            until_str = end_date_limit.strftime("%Y%m%dT235959Z") # Формат часу UTC для Google
+            
+            if parity == "всі":
+                rrule = f"RRULE:FREQ=WEEKLY;UNTIL={until_str}"
+            else:
+                # Для парних/непарних тижнів повторюємо пару кожні 2 тижні
+                rrule = f"RRULE:FREQ=WEEKLY;INTERVAL=2;UNTIL={until_str}"
+
+            # 4. Витягуємо дані про предмет, викладача і час
+            subject = next((s for s in self.db.data.get("subjects", []) if s["subject_id"] == entry["subject_id"]), None)
+            teacher = next((t for t in self.db.data.get("teachers", []) if t["teacher_id"] == entry["teacher_id"]), None)
+            period = next((p for p in self.db.data.get("periods", []) if p["period_number"] == entry["period_number"]), None)
+            
+            if not subject or not period:
+                continue
                 
-            current_date += timedelta(days=1)
+            try:
+                start_h, start_m = map(int, period["start_time"].split(":"))
+                end_h, end_m = map(int, period["end_time"].split(":"))
+            except ValueError:
+                continue 
+            
+            # Створюємо дату початку та кінця першої події
+            start_dt = datetime.combine(first_occurrence_date, time(start_h, start_m))
+            end_dt = datetime.combine(first_occurrence_date, time(end_h, end_m))
+            
+            summary = f"{subject['full_name']} ({entry['class_type']})"
+            
+            desc_lines =[]
+            if teacher: 
+                desc_lines.append(f"👨‍🏫 Викладач: {teacher['title']} {teacher['name']}")
+                
+            meeting_url = entry.get('meeting_url')
+            if meeting_url: 
+                desc_lines.append(f"🔗 Посилання: <a href='{meeting_url}'>{meeting_url}</a>")
+                
+            description = "<br>".join(desc_lines)
+
+            events.append({
+                "summary": summary,
+                "description": description,
+                "start_dt": start_dt,
+                "end_dt": end_dt,
+                "location": meeting_url,
+                "recurrence": [rrule]  # <-- ДОДАНО правило повторення
+            })
             
         return events
     

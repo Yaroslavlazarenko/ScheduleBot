@@ -48,16 +48,16 @@ class GoogleCalendarAPI:
                     'summary': ev['summary'],
                     'description': ev['description'],
                     'start': {'dateTime': ev['start_dt'].isoformat(), 'timeZone': 'Europe/Kyiv'},
-                    'end': {'dateTime': ev['end_dt'].isoformat(), 'timeZone': 'Europe/Kyiv'},
-                    'reminders': {
-                        'useDefault': False,
-                        'overrides':[{'method': 'popup', 'minutes': 10}],
-                    },
+                    'end': {'dateTime': ev['end_dt'].isoformat(), 'timeZone': 'Europe/Kyiv'}
                 }
                 
-                # Якщо є посилання на Zoom/Meet, додаємо його в поле Location
+                # Додаємо посилання на зустріч
                 if ev.get('location'):
                     event_body['location'] = ev['location']
+                    
+                # Додаємо правило повторення (Щотижня / Раз на 2 тижні)
+                if ev.get('recurrence'):
+                    event_body['recurrence'] = ev['recurrence']
 
                 service.events().insert(calendarId=calendar_id, body=event_body).execute()
                 time.sleep(0.2) # Безпечна затримка між запитами API
