@@ -35,10 +35,6 @@ async def handle_subject_selection(
     callback_data: SubjectCallbackFactory,
     services: BotServices
 ):
-    """
-    Обробляє вибір предмету та показує детальну інформацію про нього,
-    включаючи викладачів, які ведуть його для групи поточного користувача.
-    """
     if callback_data.subject_name_id is None or not isinstance(query.message, Message):
         await query.answer("Помилка: не вдалося обробити запит.", show_alert=True)
         return
@@ -60,8 +56,17 @@ async def handle_subject_selection(
     if user:
         group_id = user["group_id"]
         
+        # === НОВИЙ БЛОК КОДУ ПОЧАТОК ===
+        # Дістаємо інформацію про предмет для конкретної групи (перетворюємо int в str)
+        group_info_dict = subject.get("group_info", {})
+        specific_info = group_info_dict.get(str(group_id))
+
+        if specific_info:
+            text += f"\nℹ️ <b>Інформація для вашої групи:</b>\n{specific_info}\n"
+        # === НОВИЙ БЛОК КОДУ КІНЕЦЬ ===
+
         # Шукаємо всі записи в розкладі для цієї групи та цього предмету
-        schedule_entries = [
+        schedule_entries =[
             e for e in services.db.data.get("schedule_entries", [])
             if e["subject_id"] == subject_id and e["group_id"] == group_id
         ]
